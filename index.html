@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
 :root {
   --bg: #0d0f18;
@@ -544,8 +545,9 @@ firebase.initializeApp({
   messagingSenderId: "493864013472",
   appId: "1:493864013472:web:0604eb7b0237f4175583c5"
 });
-const fbAuth = firebase.auth();
-const fsdb  = firebase.firestore();
+const fbAuth   = firebase.auth();
+const fsdb     = firebase.firestore();
+const fstore   = firebase.storage();
 
 // ══════════════════════════════════════════════════════════════
 // AUTH
@@ -1112,6 +1114,10 @@ function renderProjectCard(p) {
 
 function deleteProject(id) {
   if (!confirm('이 결과물을 삭제하시겠습니까?')) return;
+  const p = DB.projects.find(x => x.id === id);
+  if (p && p.files) {
+    p.files.forEach(f => { if (f.storagePath) try { fstore.ref(f.storagePath).delete(); } catch(e) {} });
+  }
   DB.projects = DB.projects.filter(p => p.id !== id);
   saveDB();
   renderProjects();
@@ -1452,7 +1458,17 @@ function openModal(title, bodyHtml, footerHtml) {
   document.getElementById('modal-footer').innerHTML = footerHtml;
   document.getElementById('modal-overlay').classList.add('open');
 }
-function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  if (window._sessionUploadedPaths && window._sessionUploadedPaths.length) {
+    window._sessionUploadedPaths.forEach(path => {
+      try { fstore.ref(path).delete(); } catch(e) {}
+    });
+  }
+  window._projFiles = null;
+  window._sessionUploadedPaths = [];
+  window._pendingProjId = null;
+}
 document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
 
 // Skill Modal
@@ -1547,6 +1563,8 @@ function saveSkill() {
 // Project Modal
 function openProjectModal(id) {
   window._projFiles = null;
+  window._sessionUploadedPaths = [];
+  window._pendingProjId = id || uid();
   const p = id ? DB.projects.find(x => x.id === id) : null;
   const isEdit = !!p;
   const v = p || { title:'', description:'', date: new Date().toISOString().slice(0,10), imageUrl:'', externalLink:'', type:'', skillIds:[], files:[] };
@@ -1654,36 +1672,61 @@ function saveProject() {
     imageUrl,
     files,
   };
+  const projId = id || window._pendingProjId || uid();
   if (id) {
     const idx = DB.projects.findIndex(p => p.id === id);
     DB.projects[idx] = { ...DB.projects[idx], ...data };
   } else {
-    DB.projects.push({ id: uid(), ...data });
+    DB.projects.push({ id: projId, ...data });
   }
+  // 저장 성공 — 이번 세션 업로드 파일은 유지
+  window._sessionUploadedPaths = [];
   window._projFiles = null;
+  window._pendingProjId = null;
   saveDB();
-  closeModal();
+  document.getElementById('modal-overlay').classList.remove('open');
   renderProjects();
   toast(id ? '결과물이 수정되었습니다.' : '결과물이 추가되었습니다.', 'success');
 }
 
 function handleProjFiles(e) {
-  const MAX = 500 * 1024;
-  const newFiles = [...e.target.files];
+  const files = [...e.target.files];
+  if (!files.length) return;
   if (!window._projFiles) window._projFiles = [];
-  let skipped = 0;
-  const readers = newFiles.map(file => new Promise(resolve => {
-    if (file.size > MAX) { skipped++; resolve(null); return; }
-    const reader = new FileReader();
-    reader.onload = ev => resolve({ name: file.name, size: file.size, mimeType: file.type, data: ev.target.result });
-    reader.readAsDataURL(file);
-  }));
-  Promise.all(readers).then(results => {
-    results.filter(Boolean).forEach(f => window._projFiles.push(f));
-    renderProjFileList();
-    if (skipped) toast(`${skipped}개 파일이 500KB를 초과해 제외됐습니다.`, 'error');
-    e.target.value = '';
+  e.target.value = '';
+
+  if (!currentUser) {
+    const MAX = 2 * 1024 * 1024;
+    let skipped = 0;
+    const readers = files.map(file => new Promise(resolve => {
+      if (file.size > MAX) { skipped++; resolve(null); return; }
+      const reader = new FileReader();
+      reader.onload = ev => resolve({ name: file.name, size: file.size, mimeType: file.type, url: ev.target.result, storagePath: null });
+      reader.readAsDataURL(file);
+    }));
+    Promise.all(readers).then(results => {
+      results.filter(Boolean).forEach(f => window._projFiles.push(f));
+      renderProjFileList();
+      if (skipped) toast(`${skipped}개 파일이 2MB를 초과해 제외됐습니다.`, 'error');
+    });
+    return;
+  }
+
+  const projId = window._pendingProjId;
+  toast('파일 업로드 중...', '');
+  const uploads = files.map(file => {
+    const path = `users/${currentUser.uid}/projects/${projId}/${Date.now()}_${file.name}`;
+    return fstore.ref(path).put(file).then(snap => snap.ref.getDownloadURL()).then(url => {
+      if (!window._sessionUploadedPaths) window._sessionUploadedPaths = [];
+      window._sessionUploadedPaths.push(path);
+      return { name: file.name, size: file.size, mimeType: file.type, url, storagePath: path };
+    });
   });
+  Promise.all(uploads).then(results => {
+    results.forEach(f => window._projFiles.push(f));
+    renderProjFileList();
+    toast('파일 업로드 완료', 'success');
+  }).catch(() => toast('파일 업로드 실패', 'error'));
 }
 
 function renderProjFileList() {
@@ -1692,7 +1735,7 @@ function renderProjFileList() {
   list.innerHTML = (window._projFiles || []).map((f, i) =>
     `<div class="file-item">
        <span style="font-size:16px">${fileIcon(f.name)}</span>
-       <span class="file-item-name">${f.name}</span>
+       <span class="file-item-name">${f.url && !f.storagePath ? '🔒 ' : ''}${f.name}</span>
        <span class="file-item-size">${formatBytes(f.size)}</span>
        <button class="file-item-del" onclick="removeProjFile(${i})" title="삭제">×</button>
      </div>`
@@ -1700,7 +1743,13 @@ function renderProjFileList() {
 }
 
 function removeProjFile(i) {
-  if (window._projFiles) window._projFiles.splice(i, 1);
+  if (!window._projFiles) return;
+  const f = window._projFiles[i];
+  if (f && f.storagePath) {
+    try { fstore.ref(f.storagePath).delete(); } catch(e) {}
+    window._sessionUploadedPaths = (window._sessionUploadedPaths || []).filter(p => p !== f.storagePath);
+  }
+  window._projFiles.splice(i, 1);
   renderProjFileList();
 }
 
