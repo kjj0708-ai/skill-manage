@@ -6,6 +6,9 @@
 <title>SkillVault — 나의 기술 자산 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root {
   --bg: #0d0f18;
@@ -228,6 +231,23 @@ a { color: var(--accent2); text-decoration: none; }
 .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 18px; font-size: 13px; z-index: 2000; transform: translateY(10px); opacity: 0; transition: all 0.25s; }
 .toast.show { transform: translateY(0); opacity: 1; }
 .toast.success { border-color: var(--green); color: var(--green); }
+/* ── Auth ── */
+.auth-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.auth-user { display:flex; align-items:center; gap:8px; }
+.auth-avatar { width:28px; height:28px; border-radius:50%; object-fit:cover; flex-shrink:0; background:var(--surface3); }
+.auth-info { flex:1; min-width:0; }
+.auth-name { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.auth-status { font-size:10px; color:var(--text3); margin-top:1px; }
+.auth-login-btn { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; padding:8px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; color:var(--text2); font-size:12px; font-weight:600; transition:all 0.15s; }
+.auth-login-btn:hover { border-color:var(--accent); color:var(--text); background:var(--surface3); }
+.auth-hint { font-size:10px; color:var(--text3); text-align:center; margin-top:5px; }
+.mobile-auth-bar { display:none; align-items:center; justify-content:space-between; padding:8px 14px; background:var(--surface); border-bottom:1px solid var(--border); font-size:12px; }
+@media(max-width:800px){ .mobile-auth-bar { display:flex; } }
+.sync-dot { width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block; margin-right:4px; }
+.sync-dot.syncing { background:var(--yellow); animation:pulse 1s infinite; }
+.sync-dot.error { background:var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
 .cat-row { display:flex; align-items:center; gap:8px; padding:8px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:6px; }
 .cat-color-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 .cat-name-input { width:auto !important; }
@@ -267,6 +287,13 @@ a { color: var(--accent2); text-decoration: none; }
     <div class="sidebar-logo">
       <h1>⚡ SkillVault</h1>
       <span>나의 기술 자산 관리</span>
+    </div>
+    <div class="auth-section" id="auth-section">
+      <button class="auth-login-btn" onclick="signIn()">
+        <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Google로 로그인
+      </button>
+      <div class="auth-hint">로그인 시 클라우드 자동 저장</div>
     </div>
     <div class="sidebar-nav">
       <div class="nav-item active" data-tab="dashboard">
@@ -321,10 +348,25 @@ a { color: var(--accent2); text-decoration: none; }
 
   <!-- Main -->
   <main class="main">
+    <!-- Mobile auth bar -->
+    <div class="mobile-auth-bar" id="mobile-auth-bar">
+      <span id="mobile-auth-status" style="color:var(--text3)">로그인 전 · 로컬 저장 중</span>
+      <button class="btn btn-ghost btn-sm" id="mobile-auth-btn" onclick="signIn()">Google 로그인</button>
+    </div>
     <!-- ── Dashboard ── -->
     <div id="tab-dashboard" class="tab-panel active">
       <div class="page-header">
         <div class="page-title">대시보드 <span id="dash-date"></span></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="exportJSON()" title="JSON으로 내보내기">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            내보내기
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="importJSON()" title="JSON 불러오기">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            불러오기
+          </button>
+        </div>
       </div>
       <div class="stat-grid">
         <div class="stat-card">
@@ -444,6 +486,8 @@ a { color: var(--accent2); text-decoration: none; }
   </main>
 </div>
 
+<input type="file" id="import-file-input" accept=".json" style="display:none" onchange="handleImportFile(event)">
+
 <!-- ── Modal ── -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
@@ -460,6 +504,204 @@ a { color: var(--accent2); text-decoration: none; }
 <div class="toast" id="toast"></div>
 
 <script>
+// ══════════════════════════════════════════════════════════════
+// FIREBASE INIT
+// ══════════════════════════════════════════════════════════════
+firebase.initializeApp({
+  apiKey: "AIzaSyAqJhO1OH3u8_bANBOu5GzYewL1PrOLydQ",
+  authDomain: "skill-manage-kjj.firebaseapp.com",
+  projectId: "skill-manage-kjj",
+  storageBucket: "skill-manage-kjj.firebasestorage.app",
+  messagingSenderId: "493864013472",
+  appId: "1:493864013472:web:0604eb7b0237f4175583c5"
+});
+const fbAuth = firebase.auth();
+const fsdb  = firebase.firestore();
+
+// ══════════════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════════════
+let currentUser = null;
+let saveTimer   = null;
+
+fbAuth.onAuthStateChanged(async user => {
+  currentUser = user;
+  updateAuthUI();
+  if (user) {
+    await loadFromFirestore();
+  }
+});
+
+function updateAuthUI() {
+  const el   = document.getElementById('auth-section');
+  const mBar = document.getElementById('mobile-auth-bar');
+  if (!el) return;
+
+  if (currentUser) {
+    const name  = currentUser.displayName || currentUser.email || '사용자';
+    const photo = currentUser.photoURL || '';
+    el.innerHTML = `
+      <div class="auth-user">
+        <img class="auth-avatar" src="${photo}" onerror="this.src=''" alt="">
+        <div class="auth-info">
+          <div class="auth-name" title="${name}">${name}</div>
+          <div class="auth-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-status">동기화됨</span></div>
+        </div>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="signOut()" title="로그아웃" style="flex-shrink:0">↩</button>
+      </div>`;
+    if (mBar) {
+      document.getElementById('mobile-auth-status').innerHTML =
+        `<span class="sync-dot" id="sync-dot-m"></span>${name}`;
+      document.getElementById('mobile-auth-btn').textContent = '로그아웃';
+      document.getElementById('mobile-auth-btn').onclick = signOut;
+    }
+  } else {
+    el.innerHTML = `
+      <button class="auth-login-btn" onclick="signIn()">
+        <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Google로 로그인
+      </button>
+      <div class="auth-hint">로그인 시 클라우드 자동 저장</div>`;
+    if (mBar) {
+      document.getElementById('mobile-auth-status').textContent = '로컬 저장 중';
+      document.getElementById('mobile-auth-btn').textContent = 'Google 로그인';
+      document.getElementById('mobile-auth-btn').onclick = signIn;
+    }
+  }
+}
+
+async function signIn() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await fbAuth.signInWithPopup(provider);
+  } catch (e) {
+    toast('로그인 실패: ' + e.message);
+  }
+}
+
+async function signOut() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  await fbAuth.signOut();
+  toast('로그아웃되었습니다.');
+}
+
+// ── Firestore sync ──
+async function loadFromFirestore() {
+  setSyncStatus('syncing', '동기화 중...');
+  try {
+    const doc = await fsdb.collection('users').doc(currentUser.uid)
+                          .collection('data').doc('main').get();
+    if (doc.exists) {
+      const d = doc.data();
+      DB.skills   = d.skills   || [];
+      DB.projects = d.projects || [];
+      DB.benefits = d.benefits || [];
+      DB.settings = d.settings || {};
+      if (DB.settings.categories?.length) {
+        CATEGORIES = DB.settings.categories;
+        rebuildCatMaps();
+      }
+      // 로컬 캐시 갱신
+      localStorage.setItem('sv_skills',   JSON.stringify(DB.skills));
+      localStorage.setItem('sv_projects', JSON.stringify(DB.projects));
+      localStorage.setItem('sv_benefits', JSON.stringify(DB.benefits));
+      localStorage.setItem('sv_settings', JSON.stringify(DB.settings));
+    } else {
+      // 첫 로그인 — 로컬 데이터를 Firestore에 업로드
+      await pushToFirestore();
+    }
+    renderTab(currentTab);
+    renderDashboard();
+    setSyncStatus('ok', '동기화됨');
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', '동기화 실패');
+  }
+}
+
+async function pushToFirestore() {
+  if (!currentUser) return;
+  setSyncStatus('syncing', '저장 중...');
+  try {
+    await fsdb.collection('users').doc(currentUser.uid)
+              .collection('data').doc('main').set({
+      skills:   DB.skills,
+      projects: DB.projects,
+      benefits: DB.benefits,
+      settings: DB.settings,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    setSyncStatus('ok', '동기화됨');
+  } catch (e) {
+    console.error(e);
+    setSyncStatus('error', '저장 실패');
+  }
+}
+
+function setSyncStatus(state, msg) {
+  ['sync-dot','sync-dot-m'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'sync-dot' + (state === 'syncing' ? ' syncing' : state === 'error' ? ' error' : '');
+  });
+  const el = document.getElementById('sync-status');
+  if (el) el.textContent = msg;
+}
+
+// ══════════════════════════════════════════════════════════════
+// JSON 내보내기 / 불러오기
+// ══════════════════════════════════════════════════════════════
+function exportJSON() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    skills:   DB.skills,
+    projects: DB.projects,
+    benefits: DB.benefits,
+    settings: DB.settings,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `skillvault-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('JSON 백업 파일을 내보냈습니다.', 'success');
+}
+
+function importJSON() {
+  document.getElementById('import-file-input').click();
+}
+
+function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!Array.isArray(d.skills) || !Array.isArray(d.projects))
+        throw new Error('유효하지 않은 SkillVault 백업 파일입니다.');
+      const msg = `백업 파일을 불러오시겠습니까?\n\n기술 ${d.skills.length}개 · 결과물 ${d.projects.length}개\n\n⚠ 현재 데이터가 모두 교체됩니다.`;
+      if (!confirm(msg)) return;
+      DB.skills   = d.skills   || [];
+      DB.projects = d.projects || [];
+      DB.benefits = d.benefits || [];
+      DB.settings = d.settings || {};
+      if (DB.settings.categories?.length) { CATEGORIES = DB.settings.categories; rebuildCatMaps(); }
+      saveDB();
+      renderTab(currentTab);
+      renderDashboard();
+      toast(`불러오기 완료 — 기술 ${DB.skills.length}개, 결과물 ${DB.projects.length}개`, 'success');
+    } catch (err) {
+      toast('불러오기 실패: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
 // ══════════════════════════════════════════════════════════════
 // DATA LAYER
 // ══════════════════════════════════════════════════════════════
@@ -516,10 +758,15 @@ function loadDB() {
 }
 
 function saveDB() {
-  localStorage.setItem('sv_skills', JSON.stringify(DB.skills));
+  localStorage.setItem('sv_skills',   JSON.stringify(DB.skills));
   localStorage.setItem('sv_projects', JSON.stringify(DB.projects));
   localStorage.setItem('sv_benefits', JSON.stringify(DB.benefits));
   localStorage.setItem('sv_settings', JSON.stringify(DB.settings));
+  if (currentUser) {
+    clearTimeout(saveTimer);
+    setSyncStatus('syncing', '저장 중...');
+    saveTimer = setTimeout(pushToFirestore, 1200);
+  }
 }
 
 function uid() { return 's' + Date.now() + Math.random().toString(36).slice(2,6); }
