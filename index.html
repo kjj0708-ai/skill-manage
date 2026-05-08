@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkillVault — 나의 기술 자산 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161825;
+  --surface2: #1e2235;
+  --surface3: #262a40;
+  --border: #2e3350;
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --accent-glow: rgba(99,102,241,0.25);
+  --green: #10b981;
+  --yellow: #f59e0b;
+  --red: #ef4444;
+  --purple: #a855f7;
+  --pink: #ec4899;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --cat-design: #ec4899;
+  --cat-dev: #6366f1;
+  --cat-ai: #a855f7;
+  --cat-doc: #f59e0b;
+  --cat-video: #ef4444;
+  --cat-other: #94a3b8;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --sidebar-w: 220px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+a { color: var(--accent2); text-decoration: none; }
+
+/* ── Layout ── */
+.app { display: flex; height: 100vh; overflow: hidden; }
+.sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; flex-shrink: 0; }
+.sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo h1 { font-size: 20px; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; }
+.sidebar-logo span { font-size: 11px; color: var(--text3); }
+.sidebar-nav { padding: 12px 0; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; border-radius: 0; color: var(--text2); transition: all 0.15s; font-size: 14px; border-left: 3px solid transparent; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--surface2); color: var(--accent2); border-left-color: var(--accent); }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); }
+.main { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.tab-panel { display: none; padding: 28px; min-height: 100%; }
+.tab-panel.active { display: block; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+.page-title span { color: var(--text3); font-size: 14px; font-weight: 400; margin-left: 8px; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #5254cc; box-shadow: 0 0 12px var(--accent-glow); }
+.btn-ghost { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface3); color: var(--text); }
+.btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+.btn-danger:hover { background: rgba(239,68,68,0.1); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-icon { padding: 6px; border-radius: 6px; }
+
+/* ── Cards ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+.stat-label { font-size: 12px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+.stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ── Badges ── */
+.badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge-design { background: rgba(236,72,153,0.15); color: var(--cat-design); }
+.badge-dev { background: rgba(99,102,241,0.15); color: var(--cat-dev); }
+.badge-ai { background: rgba(168,85,247,0.15); color: var(--cat-ai); }
+.badge-doc { background: rgba(245,158,11,0.15); color: var(--cat-doc); }
+.badge-video { background: rgba(239,68,68,0.15); color: var(--cat-video); }
+.badge-other { background: rgba(148,163,184,0.15); color: var(--cat-other); }
+.badge-green { background: rgba(16,185,129,0.15); color: var(--green); }
+.badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+.badge-yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
+
+/* ── Dashboard ── */
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.dash-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.chart-wrap { position: relative; height: 280px; }
+.balance-list { display: flex; flex-direction: column; gap: 12px; }
+.balance-item { display: flex; align-items: center; gap: 12px; }
+.balance-name { width: 120px; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.balance-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.balance-bar-row { display: flex; align-items: center; gap: 8px; }
+.balance-bar-label { width: 30px; font-size: 10px; color: var(--text3); }
+.balance-bar-track { flex: 1; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+.balance-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.fill-learn { background: var(--accent); }
+.fill-exec { background: var(--green); }
+.fill-benefit { background: var(--yellow); }
+.balance-warn { color: var(--red); font-size: 16px; margin-left: 4px; }
+
+/* ── Skills Tab ── */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s; }
+.filter-btn:hover, .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: all 0.2s; position: relative; }
+.skill-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.3); transform: translateY(-2px); }
+.skill-card-bar { height: 4px; }
+.skill-card-body { padding: 16px; }
+.skill-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.skill-card-name { font-size: 16px; font-weight: 700; color: var(--text); }
+.skill-card-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.skill-card:hover .skill-card-actions { opacity: 1; }
+.skill-card-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.stars { display: flex; gap: 2px; }
+.star { font-size: 14px; }
+.star.filled { color: var(--yellow); }
+.star.empty { color: var(--surface3); }
+.skill-card-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text3); }
+.skill-stat { display: flex; align-items: center; gap: 4px; }
+.skill-card-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface2); }
+.warn-badge { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--red); }
+.progress-mini { display: flex; gap: 6px; }
+.prog-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── Projects Tab ── */
+.timeline { position: relative; padding-left: 32px; }
+.timeline::before { content: ''; position: absolute; left: 11px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.timeline-year { font-size: 13px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 12px -32px; display: flex; align-items: center; gap: 8px; }
+.timeline-year::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.timeline-item { position: relative; margin-bottom: 16px; }
+.timeline-item::before { content: ''; position: absolute; left: -25px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface3); border: 2px solid var(--border); }
+.project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; transition: all 0.2s; }
+.project-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.project-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.project-title { font-size: 15px; font-weight: 600; }
+.project-date { font-size: 11px; color: var(--text3); }
+.project-desc { font-size: 13px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; }
+.skill-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.skill-tag { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; border: 1px solid var(--border); color: var(--text2); background: var(--surface2); }
+.project-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.project-card:hover .project-actions { opacity: 1; }
+.project-link { font-size: 11px; color: var(--accent2); display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+
+/* ── Network Tab ── */
+.network-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.network-toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.network-legend { display: flex; gap: 16px; font-size: 12px; color: var(--text2); }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+#network-svg { width: 100%; display: block; }
+.node-tooltip { position: absolute; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; pointer-events: none; z-index: 100; max-width: 200px; opacity: 0; transition: opacity 0.15s; }
+.network-container { position: relative; }
+
+/* ── AI Coach Tab ── */
+.coach-sections { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px; }
+.coach-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.coach-section-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.coach-section-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.coach-section-title { font-size: 14px; font-weight: 700; }
+.coach-section-sub { font-size: 11px; color: var(--text3); }
+.coach-cards { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.coach-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; }
+.coach-card-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.coach-card-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.coach-card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.coach-card-tag { font-size: 10px; padding: 2px 7px; border-radius: 3px; background: var(--surface3); color: var(--text3); }
+.coach-card-meta { display: flex; gap: 8px; margin-top: 8px; font-size: 11px; }
+.coach-difficulty { display: flex; align-items: center; gap: 4px; }
+.diff-dot { width: 6px; height: 6px; border-radius: 50%; }
+.api-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+.api-section-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.api-section-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.api-section-body { margin-top: 16px; }
+.api-row { display: flex; gap: 10px; }
+.api-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; color: var(--text); font-size: 13px; outline: none; }
+.api-row input:focus { border-color: var(--accent); }
+.regen-bar { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 8px; }
+.ai-thinking { display: flex; align-items: center; gap: 10px; padding: 20px; color: var(--text3); font-size: 13px; }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 560px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.2s; }
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 20px; line-height: 1; padding: 4px; border-radius: 4px; }
+.modal-close:hover { color: var(--text); background: var(--surface2); }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-input, .form-select, .form-textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; color: var(--text); font-size: 13px; outline: none; transition: border-color 0.15s; font-family: inherit; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+.form-select option { background: var(--surface2); }
+.form-textarea { resize: vertical; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.level-picker { display: flex; gap: 6px; }
+.level-star { font-size: 24px; cursor: pointer; color: var(--surface3); transition: color 0.1s; }
+.level-star:hover, .level-star.active { color: var(--yellow); }
+.skill-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 160px; overflow-y: auto; padding: 4px; }
+.skill-check-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--surface2); transition: all 0.15s; }
+.skill-check-item:hover { border-color: var(--accent); }
+.skill-check-item input { width: 14px; height: 14px; accent-color: var(--accent); }
+.skill-check-item span { font-size: 12px; }
+.form-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ── Empty State ── */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; color: var(--text3); }
+.empty-state svg { width: 48px; height: 48px; opacity: 0.4; margin-bottom: 16px; }
+.empty-state p { font-size: 14px; margin-bottom: 16px; }
+
+/* ── Misc ── */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.section-title { font-size: 13px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 18px; font-size: 13px; z-index: 2000; transform: translateY(10px); opacity: 0; transition: all 0.25s; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: var(--green); color: var(--green); }
+.cat-row { display:flex; align-items:center; gap:8px; padding:8px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:6px; }
+.cat-color-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.cat-name-input { width:auto !important; }
+.tag-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: text; }
+.tag-input-wrap:focus-within { border-color: var(--accent); }
+.tag-chip { display: flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--accent); color: #fff; border-radius: 4px; font-size: 11px; }
+.tag-chip button { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+
+/* ── Bottom Nav (mobile) ── */
+.bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); z-index:200; padding-bottom:env(safe-area-inset-bottom,0px); }
+.bottom-nav-items { display:flex; height:58px; }
+.bottom-nav-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; color:var(--text3); font-size:10px; font-weight:500; transition:color 0.15s; -webkit-tap-highlight-color:transparent; user-select:none; }
+.bottom-nav-item.active { color:var(--accent2); }
+.bottom-nav-item svg { width:20px; height:20px; }
+.bottom-nav-item span { line-height:1; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) { .dash-grid { grid-template-columns: 1fr; } .coach-sections { grid-template-columns: 1fr; } }
+@media (max-width: 800px) {
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .sidebar { display: none; }
+  .bottom-nav { display: block; }
+  .main { padding-bottom: 68px; }
+  .tab-panel { padding: 14px; }
+  .skills-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .coach-sections { grid-template-columns: 1fr; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .page-title { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <h1>⚡ SkillVault</h1>
+      <span>나의 기술 자산 관리</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>대시보드</span>
+      </div>
+      <div class="nav-item" data-tab="skills">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span>기술</span>
+      </div>
+      <div class="nav-item" data-tab="projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        <span>결과물</span>
+      </div>
+      <div class="nav-item" data-tab="network">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v4M5 17l5-4M19 17l-5-4"/></svg>
+        <span>네트워크</span>
+      </div>
+      <div class="nav-item" data-tab="coach">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span>AI 코치</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">v1.0 · localStorage</div>
+  </nav>
+
+  <!-- Bottom Nav (mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-items">
+      <div class="bottom-nav-item active" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>대시보드</span>
+      </div>
+      <div class="bottom-nav-item" data-tab="skills">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span>기술</span>
+      </div>
+      <div class="bottom-nav-item" data-tab="projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        <span>결과물</span>
+      </div>
+      <div class="bottom-nav-item" data-tab="network">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v4M5 17l5-4M19 17l-5-4"/></svg>
+        <span>네트워크</span>
+      </div>
+      <div class="bottom-nav-item" data-tab="coach">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span>AI 코치</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- ── Dashboard ── -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="page-header">
+        <div class="page-title">대시보드 <span id="dash-date"></span></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">등록 기술</div>
+          <div class="stat-value" id="stat-skills">0</div>
+          <div class="stat-sub">개 카테고리</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">결과물</div>
+          <div class="stat-value" id="stat-projects">0</div>
+          <div class="stat-sub">개 프로젝트</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">총 학습 시간</div>
+          <div class="stat-value" id="stat-hours">0</div>
+          <div class="stat-sub">시간 누적</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">미연결 기술</div>
+          <div class="stat-value" id="stat-orphan" style="color:var(--red)">0</div>
+          <div class="stat-sub">결과물 없음 ⚠️</div>
+        </div>
+      </div>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="section-title">스킬 레이더 차트</div>
+          <div class="chart-wrap"><canvas id="radar-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="section-title" style="margin-bottom:16px">학습 · 실행 · 혜택 밸런스</div>
+          <div class="balance-list" id="balance-list"></div>
+        </div>
+      </div>
+      <div class="section-title" style="margin-top:24px">최근 결과물</div>
+      <div id="recent-projects" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;"></div>
+    </div>
+
+    <!-- ── Skills ── -->
+    <div id="tab-skills" class="tab-panel">
+      <div class="page-header">
+        <div class="page-title">기술 <span id="skills-count"></span></div>
+        <button class="btn btn-primary" onclick="openSkillModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          기술 추가
+        </button>
+      </div>
+      <div class="filter-bar" id="skills-filter"></div>
+      <div class="skills-grid" id="skills-grid"></div>
+    </div>
+
+    <!-- ── Projects ── -->
+    <div id="tab-projects" class="tab-panel">
+      <div class="page-header">
+        <div class="page-title">결과물 <span id="projects-count"></span></div>
+        <button class="btn btn-primary" onclick="openProjectModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          결과물 추가
+        </button>
+      </div>
+      <div class="filter-bar" id="projects-filter"></div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+
+    <!-- ── Network ── -->
+    <div id="tab-network" class="tab-panel">
+      <div class="page-header">
+        <div class="page-title">네트워크 그래프</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="resetZoom()">리셋</button>
+        </div>
+      </div>
+      <div class="network-wrap">
+        <div class="network-toolbar">
+          <div class="network-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>기술</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--green);border-radius:2px"></div>결과물</div>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-left:auto">노드 클릭 시 연결 강조 · 드래그로 이동 · 스크롤로 줌</div>
+        </div>
+        <div class="network-container">
+          <svg id="network-svg"></svg>
+          <div class="node-tooltip" id="node-tooltip"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI Coach ── -->
+    <div id="tab-coach" class="tab-panel">
+      <div class="page-header">
+        <div class="page-title">AI 코치</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="generateRecommendations()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            추천 생성
+          </button>
+        </div>
+      </div>
+      <div class="api-section">
+        <div class="api-section-header" onclick="toggleApiSection()">
+          <div class="api-section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Claude API 설정 <span style="font-size:11px;color:var(--text3);font-weight:400">(선택 · 없으면 기본 추천 제공)</span>
+          </div>
+          <span id="api-chevron" style="color:var(--text3)">▼</span>
+        </div>
+        <div class="api-section-body" id="api-section-body" style="display:none">
+          <div class="api-row">
+            <input type="password" id="api-key-input" placeholder="AIza..." />
+            <button class="btn btn-ghost btn-sm" onclick="saveApiKey()">저장</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearApiKey()">삭제</button>
+          </div>
+          <div class="form-hint" style="margin-top:6px">Google AI Studio (<a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a>)에서 무료 발급 · 브라우저 내에만 저장됩니다.</div>
+        </div>
+      </div>
+      <div id="coach-content"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Modal ── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title"></div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATA LAYER
+// ══════════════════════════════════════════════════════════════
+const DEFAULT_CATEGORIES = ['디자인','개발','AI','문서작성','영상','기타'];
+const CAT_COLORS_POOL = ['#ec4899','#6366f1','#a855f7','#f59e0b','#ef4444','#94a3b8','#06b6d4','#84cc16','#f97316','#14b8a6'];
+const CAT_CLASSES_POOL = ['design','dev','ai','doc','video','other','cyan','lime','orange','teal'];
+let CATEGORIES = [...DEFAULT_CATEGORIES];
+let CAT_CLASS = {};
+let CAT_COLOR = {};
+function rebuildCatMaps() {
+  CAT_COLOR = {};
+  CAT_CLASS = {};
+  CATEGORIES.forEach((c, i) => {
+    CAT_COLOR[c] = CAT_COLORS_POOL[i % CAT_COLORS_POOL.length];
+    CAT_CLASS[c] = CAT_CLASSES_POOL[i % CAT_CLASSES_POOL.length];
+  });
+}
+rebuildCatMaps();
+const PATHS = ['유튜브','책','강의','실전','독학','기타'];
+const LEVEL_NAMES = ['','입문','초급','중급','고급','전문가'];
+
+const SEED_SKILLS = [
+  {id:'s1',name:'스케치업',category:'디자인',level:3,startDate:'2022-01-01',totalHours:80,learningPath:'유튜브',notes:'3D 건축 모델링 도구. 세컨하우스 설계에 활용.',createdAt:'2022-01-01'},
+  {id:'s2',name:'Claude',category:'AI',level:5,startDate:'2023-03-01',totalHours:200,learningPath:'실전',notes:'핵심 AI 도구. 다수의 실무 앱 제작.',createdAt:'2023-03-01'},
+  {id:'s3',name:'Flutter',category:'개발',level:2,startDate:'2024-01-01',totalHours:60,learningPath:'강의',notes:'크로스플랫폼 모바일 앱 개발. 현재 학습 중.',createdAt:'2024-01-01'},
+  {id:'s4',name:'HTML/CSS/JS',category:'개발',level:4,startDate:'2021-06-01',totalHours:300,learningPath:'실전',notes:'단일 HTML 파일 앱, 인터랙티브 게임 등 다수 제작.',createdAt:'2021-06-01'},
+  {id:'s5',name:'Firebase',category:'개발',level:3,startDate:'2023-06-01',totalHours:50,learningPath:'실전',notes:'실시간 DB, 인증, 호스팅 백엔드 서비스.',createdAt:'2023-06-01'},
+  {id:'s6',name:'유튜브 운영',category:'영상',level:3,startDate:'2023-09-01',totalHours:150,learningPath:'실전',notes:'초실행관 채널 - 저연차 공무원 대상 콘텐츠.',createdAt:'2023-09-01'},
+  {id:'s7',name:'전자책 집필',category:'문서작성',level:2,startDate:'2024-06-01',totalHours:40,learningPath:'실전',notes:'공무원 AI 활용법 출간 준비 중.',createdAt:'2024-06-01'},
+];
+
+const SEED_PROJECTS = [
+  {id:'p1',title:'세컨하우스 건축디자인',description:'스케치업으로 직접 제작한 세컨하우스 3D 건축 도면. 내부 인테리어 레이아웃까지 설계.',date:'2022-06-01',imageUrl:'',externalLink:'',skillIds:['s1']},
+  {id:'p2',title:'업무수첩 앱',description:'Claude를 활용한 공무원 일일 업무 기록 및 관리 앱. HTML 단일 파일 구현.',date:'2023-08-01',imageUrl:'',externalLink:'',skillIds:['s2','s4']},
+  {id:'p3',title:'서구 도시주택국 대시보드',description:'부서 주요 업무 현황을 실시간으로 시각화한 대시보드. Firebase 백엔드 연동.',date:'2023-10-01',imageUrl:'',externalLink:'',skillIds:['s2','s4','s5']},
+  {id:'p4',title:'행정공제회 시뮬레이터',description:'행정공제회 예상 수익 시뮬레이션 도구. 다양한 시나리오별 분석 제공.',date:'2024-02-01',imageUrl:'',externalLink:'',skillIds:['s2','s4']},
+  {id:'p5',title:'링크 저장 창고 앱',description:'Flutter로 개발 중인 링크 큐레이션 및 분류 앱. 카테고리 자동 분류 기능 포함.',date:'2024-05-01',imageUrl:'',externalLink:'',skillIds:['s3']},
+  {id:'p6',title:'초실행관 유튜브 채널',description:'저연차 공무원 대상 공직생활 서바이벌 콘텐츠. 실행 중심 공직 노하우 전달.',date:'2023-09-01',imageUrl:'',externalLink:'',skillIds:['s6','s2']},
+  {id:'p7',title:'공무원 AI 활용법 전자책',description:'공무원을 위한 AI 도구 실전 가이드. Claude, ChatGPT 등 활용법을 담은 전자책.',date:'2024-08-01',imageUrl:'',externalLink:'',skillIds:['s7','s2']},
+];
+
+const DB = { skills:[], projects:[], benefits:[], settings:{} };
+
+function loadDB() {
+  DB.skills = JSON.parse(localStorage.getItem('sv_skills') || 'null');
+  DB.projects = JSON.parse(localStorage.getItem('sv_projects') || 'null');
+  DB.benefits = JSON.parse(localStorage.getItem('sv_benefits') || '[]');
+  DB.settings = JSON.parse(localStorage.getItem('sv_settings') || '{}');
+  if (DB.settings.categories && DB.settings.categories.length) {
+    CATEGORIES = DB.settings.categories;
+    rebuildCatMaps();
+  }
+  if (!DB.skills) { DB.skills = SEED_SKILLS; DB.projects = SEED_PROJECTS; saveDB(); }
+}
+
+function saveDB() {
+  localStorage.setItem('sv_skills', JSON.stringify(DB.skills));
+  localStorage.setItem('sv_projects', JSON.stringify(DB.projects));
+  localStorage.setItem('sv_benefits', JSON.stringify(DB.benefits));
+  localStorage.setItem('sv_settings', JSON.stringify(DB.settings));
+}
+
+function uid() { return 's' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+function getSkillById(id) { return DB.skills.find(s => s.id === id); }
+function getProjectsBySkill(sid) { return DB.projects.filter(p => p.skillIds.includes(sid)); }
+function getSkillsForProject(pid) {
+  const p = DB.projects.find(x => x.id === pid);
+  return p ? p.skillIds.map(id => getSkillById(id)).filter(Boolean) : [];
+}
+
+// ══════════════════════════════════════════════════════════════
+// ROUTER
+// ══════════════════════════════════════════════════════════════
+let currentTab = 'dashboard';
+
+document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const tab = item.dataset.tab;
+    switchTab(tab);
+  });
+});
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+  renderTab(tab);
+}
+
+function renderTab(tab) {
+  if (tab === 'dashboard') renderDashboard();
+  else if (tab === 'skills') renderSkills();
+  else if (tab === 'projects') renderProjects();
+  else if (tab === 'network') renderNetwork();
+  else if (tab === 'coach') renderCoach();
+}
+
+// ══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════
+let radarChart = null;
+
+function renderDashboard() {
+  const now = new Date();
+  document.getElementById('dash-date').textContent = now.toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'});
+
+  // Stats
+  document.getElementById('stat-skills').textContent = DB.skills.length;
+  document.getElementById('stat-projects').textContent = DB.projects.length;
+  document.getElementById('stat-hours').textContent = DB.skills.reduce((a,s) => a + (s.totalHours||0), 0).toLocaleString();
+  const orphans = DB.skills.filter(s => getProjectsBySkill(s.id).length === 0).length;
+  document.getElementById('stat-orphan').textContent = orphans;
+
+  renderRadar();
+  renderBalance();
+  renderRecentProjects();
+}
+
+function renderRadar() {
+  const catAvg = {};
+  CATEGORIES.forEach(c => {
+    const skills = DB.skills.filter(s => s.category === c);
+    catAvg[c] = skills.length ? skills.reduce((a, s) => a + s.level, 0) / skills.length : 0;
+  });
+
+  const ctx = document.getElementById('radar-chart').getContext('2d');
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: CATEGORIES,
+      datasets: [{
+        label: '숙련도',
+        data: CATEGORIES.map(c => catAvg[c]),
+        backgroundColor: 'rgba(99,102,241,0.2)',
+        borderColor: '#6366f1',
+        borderWidth: 2,
+        pointBackgroundColor: CATEGORIES.map(c => CAT_COLOR[c]),
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { r: {
+        min: 0, max: 5,
+        ticks: { stepSize: 1, color: '#64748b', font: {size:10}, backdropColor: 'transparent' },
+        grid: { color: '#2e3350' },
+        angleLines: { color: '#2e3350' },
+        pointLabels: { color: '#94a3b8', font: {size:12, weight:'600'} },
+      }},
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ` ${LEVEL_NAMES[Math.round(ctx.raw)] || ctx.raw.toFixed(1)}` }
+      }},
+    }
+  });
+}
+
+function renderBalance() {
+  const list = document.getElementById('balance-list');
+  const maxH = Math.max(...DB.skills.map(s => s.totalHours || 0), 1);
+  const maxP = Math.max(...DB.skills.map(s => getProjectsBySkill(s.id).length), 1);
+  list.innerHTML = DB.skills.slice(0, 8).map(s => {
+    const projects = getProjectsBySkill(s.id).length;
+    const benefits = DB.benefits.filter(b => b.skillId === s.id).length;
+    const hPct = Math.round(((s.totalHours||0) / maxH) * 100);
+    const pPct = Math.round((projects / maxP) * 100);
+    const bPct = Math.min(benefits * 20, 100);
+    const warn = projects === 0 ? '<span class="balance-warn" title="결과물 없음">⚠</span>' : '';
+    return `<div class="balance-item">
+      <div class="balance-name" title="${s.name}">${s.name}</div>
+      <div class="balance-bars">
+        <div class="balance-bar-row"><span class="balance-bar-label">학습</span><div class="balance-bar-track"><div class="balance-bar-fill fill-learn" style="width:${hPct}%"></div></div></div>
+        <div class="balance-bar-row"><span class="balance-bar-label">실행</span><div class="balance-bar-track"><div class="balance-bar-fill fill-exec" style="width:${pPct}%"></div></div></div>
+        <div class="balance-bar-row"><span class="balance-bar-label">혜택</span><div class="balance-bar-track"><div class="balance-bar-fill fill-benefit" style="width:${bPct}%"></div></div></div>
+      </div>${warn}
+    </div>`;
+  }).join('');
+}
+
+function renderRecentProjects() {
+  const sorted = [...DB.projects].sort((a,b) => b.date.localeCompare(a.date)).slice(0,4);
+  const el = document.getElementById('recent-projects');
+  el.innerHTML = sorted.map(p => {
+    const skills = getSkillsForProject(p.id);
+    return `<div class="project-card" style="cursor:default">
+      <div class="project-card-header">
+        <div class="project-title">${p.title}</div>
+        <div class="project-date">${formatDate(p.date)}</div>
+      </div>
+      <div class="project-desc">${p.description}</div>
+      <div class="skill-tags">${skills.map(s => `<span class="skill-tag">${s.name}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SKILLS TAB
+// ══════════════════════════════════════════════════════════════
+let skillFilter = '전체';
+
+function renderSkills() {
+  document.getElementById('skills-count').textContent = `(${DB.skills.length}개)`;
+  renderSkillFilters();
+  renderSkillsGrid();
+}
+
+function renderSkillFilters() {
+  const counts = {};
+  counts['전체'] = DB.skills.length;
+  CATEGORIES.forEach(c => { counts[c] = DB.skills.filter(s => s.category === c).length; });
+  const bar = document.getElementById('skills-filter');
+  bar.innerHTML = ['전체', ...CATEGORIES].map(c => {
+    const active = skillFilter === c ? 'active' : '';
+    return `<button class="filter-btn ${active}" onclick="setSkillFilter('${c}')">${c} <span style="opacity:0.6">${counts[c]||0}</span></button>`;
+  }).join('') + `<button class="filter-btn" onclick="openCategoryModal()" style="margin-left:auto;color:var(--text3);border-style:dashed">⚙ 카테고리 편집</button>`;
+}
+
+function setSkillFilter(cat) {
+  skillFilter = cat;
+  renderSkillFilters();
+  renderSkillsGrid();
+}
+
+function renderSkillsGrid() {
+  const filtered = skillFilter === '전체' ? DB.skills : DB.skills.filter(s => s.category === skillFilter);
+  const grid = document.getElementById('skills-grid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><p>이 카테고리에 등록된 기술이 없습니다.</p><button class="btn btn-primary btn-sm" onclick="openSkillModal()">기술 추가</button></div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(s => renderSkillCard(s)).join('');
+}
+
+function renderSkillCard(s) {
+  const cls = CAT_CLASS[s.category] || 'other';
+  const color = CAT_COLOR[s.category];
+  const stars = Array.from({length:5}, (_,i) => `<span class="star ${i < s.level ? 'filled' : 'empty'}">★</span>`).join('');
+  const projects = getProjectsBySkill(s.id);
+  const pCount = projects.length;
+  const warnHtml = pCount === 0 ? `<span class="badge badge-red">결과물 없음 ⚠</span>` : `<span class="badge badge-green">${pCount}개 결과물</span>`;
+  return `<div class="skill-card" id="skill-${s.id}">
+    <div class="skill-card-bar" style="background:${color}"></div>
+    <div class="skill-card-body">
+      <div class="skill-card-header">
+        <div class="skill-card-name">${s.name}</div>
+        <div class="skill-card-actions">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openSkillModal('${s.id}')" title="편집">✏️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteSkill('${s.id}')" title="삭제">🗑</button>
+        </div>
+      </div>
+      <div class="skill-card-meta">
+        <span class="badge badge-${cls}">${s.category}</span>
+        <div class="stars">${stars}</div>
+        <span style="font-size:12px;color:var(--text3)">${LEVEL_NAMES[s.level]}</span>
+      </div>
+      <div class="skill-card-stats">
+        <div class="skill-stat">⏱ ${s.totalHours||0}시간</div>
+        <div class="skill-stat">📚 ${s.learningPath||'-'}</div>
+        ${s.startDate ? `<div class="skill-stat">📅 ${formatDate(s.startDate)}</div>` : ''}
+      </div>
+      ${s.notes ? `<div style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.5">${s.notes}</div>` : ''}
+    </div>
+    <div class="skill-card-footer">
+      ${warnHtml}
+      <div style="font-size:11px;color:var(--text3)">${s.learningPath||''}</div>
+    </div>
+  </div>`;
+}
+
+function deleteSkill(id) {
+  if (!confirm('이 기술을 삭제하시겠습니까?\n연결된 결과물의 기술 태그도 제거됩니다.')) return;
+  DB.skills = DB.skills.filter(s => s.id !== id);
+  DB.projects.forEach(p => { p.skillIds = p.skillIds.filter(sid => sid !== id); });
+  saveDB();
+  renderSkills();
+  toast('기술이 삭제되었습니다.');
+}
+
+// ══════════════════════════════════════════════════════════════
+// PROJECTS TAB
+// ══════════════════════════════════════════════════════════════
+let projectFilter = '전체';
+
+function renderProjects() {
+  document.getElementById('projects-count').textContent = `(${DB.projects.length}개)`;
+  renderProjectFilters();
+  renderTimeline();
+}
+
+function renderProjectFilters() {
+  const bar = document.getElementById('projects-filter');
+  const options = ['전체', ...DB.skills.map(s => s.name)];
+  bar.innerHTML = options.map(name => {
+    const active = projectFilter === name ? 'active' : '';
+    return `<button class="filter-btn ${active}" onclick="setProjectFilter('${name}')">${name}</button>`;
+  }).join('');
+}
+
+function setProjectFilter(name) {
+  projectFilter = name;
+  renderProjectFilters();
+  renderTimeline();
+}
+
+function renderTimeline() {
+  let filtered = DB.projects;
+  if (projectFilter !== '전체') {
+    const skill = DB.skills.find(s => s.name === projectFilter);
+    if (skill) filtered = filtered.filter(p => p.skillIds.includes(skill.id));
+  }
+  const sorted = [...filtered].sort((a,b) => b.date.localeCompare(a.date));
+
+  const byYear = {};
+  sorted.forEach(p => {
+    const y = p.date.slice(0,4);
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(p);
+  });
+
+  const el = document.getElementById('timeline');
+  if (!sorted.length) {
+    el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><p>결과물이 없습니다.</p><button class="btn btn-primary btn-sm" onclick="openProjectModal()">결과물 추가</button></div>`;
+    return;
+  }
+
+  el.innerHTML = Object.keys(byYear).sort((a,b) => b-a).map(year =>
+    `<div class="timeline-year">${year}년</div>` +
+    byYear[year].map(p => renderProjectCard(p)).join('')
+  ).join('');
+}
+
+function renderProjectCard(p) {
+  const skills = getSkillsForProject(p.id);
+  const linkHtml = p.externalLink ? `<a class="project-link" href="${p.externalLink}" target="_blank">🔗 링크 열기</a>` : '';
+  return `<div class="timeline-item">
+    <div class="project-card">
+      <div class="project-card-header">
+        <div class="project-title">${p.title}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="project-date">${formatDate(p.date)}</div>
+          <div class="project-actions">
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="openProjectModal('${p.id}')" title="편집">✏️</button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteProject('${p.id}')" title="삭제">🗑</button>
+          </div>
+        </div>
+      </div>
+      <div class="project-desc">${p.description}</div>
+      <div class="skill-tags">${skills.map(s => `<span class="skill-tag" style="border-color:${CAT_COLOR[s.category]}40;color:${CAT_COLOR[s.category]}">${s.name}</span>`).join('')}</div>
+      ${linkHtml}
+    </div>
+  </div>`;
+}
+
+function deleteProject(id) {
+  if (!confirm('이 결과물을 삭제하시겠습니까?')) return;
+  DB.projects = DB.projects.filter(p => p.id !== id);
+  saveDB();
+  renderProjects();
+  toast('결과물이 삭제되었습니다.');
+}
+
+// ══════════════════════════════════════════════════════════════
+// NETWORK GRAPH (D3 v7)
+// ══════════════════════════════════════════════════════════════
+let networkSim = null;
+let zoomBehavior = null;
+
+function renderNetwork() {
+  const container = document.querySelector('.network-container');
+  const w = container.clientWidth || 800;
+  const h = Math.max(500, window.innerHeight - 200);
+
+  const svg = d3.select('#network-svg')
+    .attr('width', w).attr('height', h)
+    .style('background', 'var(--bg)');
+
+  svg.selectAll('*').remove();
+
+  // Build nodes & links
+  const nodes = [
+    ...DB.skills.map(s => ({ id: s.id, name: s.name, type: 'skill', category: s.category, level: s.level, totalHours: s.totalHours })),
+    ...DB.projects.map(p => ({ id: p.id, name: p.title, type: 'project', date: p.date })),
+  ];
+  const links = [];
+  DB.projects.forEach(p => {
+    p.skillIds.forEach(sid => {
+      if (DB.skills.find(s => s.id === sid)) {
+        links.push({ source: sid, target: p.id });
+      }
+    });
+  });
+
+  const g = svg.append('g');
+
+  // Zoom
+  zoomBehavior = d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform));
+  svg.call(zoomBehavior);
+
+  // Simulation
+  if (networkSim) networkSim.stop();
+  networkSim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
+    .force('charge', d3.forceManyBody().strength(-300))
+    .force('center', d3.forceCenter(w/2, h/2))
+    .force('collide', d3.forceCollide(50));
+
+  // Links
+  const link = g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke', 'var(--border)').attr('stroke-width', 1.5).attr('stroke-opacity', 0.6);
+
+  // Nodes
+  const node = g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) networkSim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) networkSim.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  node.each(function(d) {
+    const el = d3.select(this);
+    if (d.type === 'skill') {
+      const r = 18 + (d.level || 1) * 3;
+      el.append('circle')
+        .attr('r', r)
+        .attr('fill', CAT_COLOR[d.category] || '#94a3b8')
+        .attr('fill-opacity', 0.85)
+        .attr('stroke', CAT_COLOR[d.category] || '#94a3b8')
+        .attr('stroke-width', 2);
+    } else {
+      el.append('rect')
+        .attr('x', -40).attr('y', -18).attr('width', 80).attr('height', 36)
+        .attr('rx', 8)
+        .attr('fill', 'var(--surface2)')
+        .attr('stroke', 'var(--green)')
+        .attr('stroke-width', 1.5);
+    }
+    el.append('text')
+      .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+      .attr('fill', '#fff').attr('font-size', d.type === 'skill' ? 11 : 10)
+      .attr('font-weight', '600')
+      .attr('pointer-events', 'none')
+      .text(d.name.length > 7 ? d.name.slice(0,7)+'…' : d.name);
+  });
+
+  // Tooltip
+  const tooltip = document.getElementById('node-tooltip');
+  node
+    .on('mouseover', (e, d) => {
+      tooltip.style.opacity = '1';
+      if (d.type === 'skill') {
+        tooltip.innerHTML = `<b>${d.name}</b><br>${d.category} · ${LEVEL_NAMES[d.level]}<br>${d.totalHours||0}시간 학습`;
+      } else {
+        tooltip.innerHTML = `<b>${d.name}</b><br>결과물 · ${formatDate(d.date)}`;
+      }
+    })
+    .on('mousemove', e => {
+      const rect = container.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+    })
+    .on('mouseleave', () => { tooltip.style.opacity = '0'; });
+
+  // Click highlight
+  node.on('click', (e, d) => {
+    const connectedIds = new Set([d.id]);
+    links.forEach(l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      if (sid === d.id) connectedIds.add(tid);
+      if (tid === d.id) connectedIds.add(sid);
+    });
+    node.selectAll('circle,rect').attr('opacity', nd => connectedIds.has(nd.id) ? 1 : 0.2);
+    link.attr('stroke-opacity', l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      return (sid === d.id || tid === d.id) ? 1 : 0.1;
+    }).attr('stroke', l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      return (sid === d.id || tid === d.id) ? 'var(--accent2)' : 'var(--border)';
+    }).attr('stroke-width', l => {
+      const sid = typeof l.source === 'object' ? l.source.id : l.source;
+      const tid = typeof l.target === 'object' ? l.target.id : l.target;
+      return (sid === d.id || tid === d.id) ? 2.5 : 1;
+    });
+    node.selectAll('text').attr('opacity', nd => connectedIds.has(nd.id) ? 1 : 0.2);
+  });
+
+  svg.on('click', function(e) {
+    if (e.target === this || e.target.tagName === 'svg') {
+      node.selectAll('circle,rect').attr('opacity', 1);
+      node.selectAll('text').attr('opacity', 1);
+      link.attr('stroke-opacity', 0.6).attr('stroke', 'var(--border)').attr('stroke-width', 1.5);
+    }
+  });
+
+  networkSim.on('tick', () => {
+    link
+      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+
+function resetZoom() {
+  if (zoomBehavior) {
+    d3.select('#network-svg').transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// AI COACH
+// ══════════════════════════════════════════════════════════════
+const MOCK_RECOMMENDATIONS = {
+  ideas: [
+    { title: '공무원 민원 응대 AI 챗봇 앱', body: 'Claude + Flutter + Firebase 조합으로 민원인 자주 묻는 질문에 자동 응답하는 앱을 제작할 수 있습니다. 부서별 업무 매뉴얼을 학습시켜 24시간 대응 가능한 도구로 발전시킬 수 있습니다.', tags: ['Claude','Flutter','Firebase'], difficulty: 2 },
+    { title: '인터랙티브 공직 교육 콘텐츠 플랫폼', body: '유튜브 채널 + HTML/JS + Claude를 활용해 자기평가 퀴즈, 시나리오 학습을 제공하는 인터랙티브 교육 페이지를 만들 수 있습니다. 채널 콘텐츠와 연계하여 부가가치를 높입니다.', tags: ['HTML/CSS/JS','Claude','유튜브'], difficulty: 1 },
+    { title: '행정 문서 자동 초안 생성 도구', body: 'Claude API + HTML 단일 파일로 공문, 보고서, 기안문 등을 템플릿 기반으로 자동 생성하는 도구를 만들 수 있습니다. 현재 역량 내에서 가장 빠르게 실현 가능한 아이디어입니다.', tags: ['Claude','HTML/CSS/JS'], difficulty: 1 },
+  ],
+  nextSkills: [
+    { title: 'Lumion / Twinmotion', body: '스케치업 숙련도를 가지고 계시니, 렌더링 품질을 사진급으로 높이는 Lumion 또는 무료인 Twinmotion을 배우시면 건축 포트폴리오 가치가 크게 높아집니다. 유튜브 채널 콘텐츠로도 활용 가능합니다.', tags: ['스케치업 연계','3D 렌더링'], difficulty: 2 },
+    { title: 'Python + 자동화', body: 'Claude API, Firebase와 결합 시 가장 강력한 도구입니다. 반복 업무 자동화, 데이터 분석, 배치 처리 등 공직 업무 자동화에 직접 적용 가능하며 학습 대비 활용도가 최상위입니다.', tags: ['Claude 연계','업무 자동화'], difficulty: 2 },
+    { title: 'Notion API / 자동화', body: '전자책 집필 + 유튜브 운영 + Claude를 Notion으로 통합 관리하면 콘텐츠 파이프라인이 완성됩니다. API 연동으로 콘텐츠 자동 발행, 구독자 관리 시스템도 구축 가능합니다.', tags: ['문서작성 연계','콘텐츠 자동화'], difficulty: 1 },
+  ],
+  monetize: [
+    { title: 'AI 활용 공무원 컨설팅/강의', body: 'Claude, ChatGPT 등 AI 도구 활용 역량을 바탕으로 공공기관 대상 AI 활용 교육 강사로 활동할 수 있습니다. 34년 공직 경험이 신뢰도를 높여줍니다.', tags: ['직접 수익','강의'], income: '회당 30~100만원', difficulty: 2 },
+    { title: '초실행관 채널 수익화', body: '광고 수익(구독자 증가 후), 브랜드 스폰서십, 채널 멤버십, 전자책/강의 연계 판매로 다각화할 수 있습니다. 니치(공무원 타깃)가 명확해 전환율이 높습니다.', tags: ['직접 수익','채널'], income: '월 20~200만원 (구독자 규모 따라)', difficulty: 2 },
+    { title: '공무원 AI 활용법 전자책 출판', body: '현재 집필 중인 전자책을 크몽, 클래스101, 탈잉 등 플랫폼에 출시하거나 본인 채널을 통해 직접 판매할 수 있습니다. 공직자 대상 틈새 시장이라 경쟁이 낮습니다.', tags: ['직접 수익','전자책'], income: '1,000~5,000부 × 9,900~19,800원', difficulty: 1 },
+    { title: '행정 특화 SaaS/웹앱 판매', body: 'HTML/JS + Firebase 역량으로 공무원용 특화 도구(예산 계산기, 공문 생성기, 인사 시뮬레이터)를 만들어 소규모 구독 서비스로 운영할 수 있습니다.', tags: ['간접 수익','SaaS'], income: '월 구독 5,000~20,000원 × 사용자 수', difficulty: 3 },
+  ]
+};
+
+let coachGenerated = false;
+
+function renderCoach() {
+  const key = localStorage.getItem('sv_api_key') || '';
+  if (key) document.getElementById('api-key-input').value = '••••••••••••••••';
+
+  if (!coachGenerated) {
+    showMockRecommendations();
+  }
+}
+
+function toggleApiSection() {
+  const body = document.getElementById('api-section-body');
+  const chevron = document.getElementById('api-chevron');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chevron.textContent = open ? '▼' : '▲';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (val && !val.startsWith('•')) {
+    localStorage.setItem('sv_api_key', val);
+    document.getElementById('api-key-input').value = '••••••••••••••••';
+    toast('API 키가 저장되었습니다.');
+  }
+}
+
+function clearApiKey() {
+  localStorage.removeItem('sv_api_key');
+  document.getElementById('api-key-input').value = '';
+  toast('API 키가 삭제되었습니다.');
+}
+
+async function generateRecommendations() {
+  const apiKey = localStorage.getItem('sv_api_key');
+  if (apiKey) {
+    await generateWithAPI(apiKey);
+  } else {
+    showMockRecommendations();
+    toast('API 키가 없어 기본 추천을 표시합니다.');
+  }
+  coachGenerated = true;
+}
+
+async function generateWithAPI(apiKey) {
+  const content = document.getElementById('coach-content');
+  content.innerHTML = `<div class="ai-thinking"><div class="spinner"></div>AI가 기술 조합을 분석 중입니다...</div>`;
+
+  const skillSummary = DB.skills.map(s => `- ${s.name} (${s.category}, ${LEVEL_NAMES[s.level]}, ${s.totalHours}시간)`).join('\n');
+  const projectSummary = DB.projects.map(p => `- ${p.title}`).join('\n');
+
+  const prompt = `당신은 기술 포트폴리오 분석 전문가입니다. 아래는 사용자의 기술 자산입니다.
+
+보유 기술:
+${skillSummary}
+
+제작한 결과물:
+${projectSummary}
+
+다음 세 가지를 JSON으로 응답해주세요. 반드시 순수 JSON만 응답하세요.
+
+{
+  "ideas": [{"title":"...", "body":"...", "tags":["기술1","기술2"], "difficulty": 1~3}],  // 활용 아이디어 3개
+  "nextSkills": [{"title":"...", "body":"...", "tags":["..."], "difficulty": 1~3}],  // 다음 학습 추천 3개
+  "monetize": [{"title":"...", "body":"...", "tags":["..."], "income":"...", "difficulty": 1~3}]  // 수익화 경로 3~4개
+}
+
+difficulty는 1=쉬움, 2=보통, 3=어려움. 한국어로, 구체적이고 실행 가능하게 작성하세요.`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 2000, temperature: 0.7 },
+        }),
+      }
+    );
+    if (!res.ok) throw new Error(`API 오류: ${res.status}`);
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSON 파싱 실패');
+    const recs = JSON.parse(jsonMatch[0]);
+    displayRecommendations(recs);
+    toast('AI 추천이 생성되었습니다! ✨', 'success');
+  } catch (err) {
+    console.error(err);
+    showMockRecommendations();
+    toast('API 호출 실패. 기본 추천을 표시합니다.');
+  }
+}
+
+function showMockRecommendations() {
+  displayRecommendations(MOCK_RECOMMENDATIONS);
+}
+
+function displayRecommendations(recs) {
+  const diffLabel = d => d === 1 ? ['#10b981','쉬움'] : d === 2 ? ['#f59e0b','보통'] : ['#ef4444','어려움'];
+
+  const sectionHtml = (items, extra) => items.map(item => {
+    const [col, lbl] = diffLabel(item.difficulty || 1);
+    const extraHtml = extra ? `<div style="font-size:11px;color:var(--yellow);margin-top:6px">💰 ${item.income || ''}</div>` : '';
+    return `<div class="coach-card">
+      <div class="coach-card-title">${item.title}</div>
+      <div class="coach-card-body">${item.body}</div>
+      <div class="coach-card-tags">${(item.tags||[]).map(t => `<span class="coach-card-tag">${t}</span>`).join('')}</div>
+      ${extraHtml}
+      <div class="coach-card-meta">
+        <div class="coach-difficulty"><div class="diff-dot" style="background:${col}"></div><span style="font-size:10px;color:var(--text3)">${lbl}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('coach-content').innerHTML = `
+    <div class="coach-sections">
+      <div class="coach-section">
+        <div class="coach-section-header">
+          <div class="coach-section-icon" style="background:rgba(99,102,241,0.15)">💡</div>
+          <div>
+            <div class="coach-section-title">활용 아이디어</div>
+            <div class="coach-section-sub">보유 기술 조합으로 만들 수 있는 것</div>
+          </div>
+        </div>
+        <div class="coach-cards">${sectionHtml(recs.ideas||[], false)}</div>
+      </div>
+      <div class="coach-section">
+        <div class="coach-section-header">
+          <div class="coach-section-icon" style="background:rgba(16,185,129,0.15)">📈</div>
+          <div>
+            <div class="coach-section-title">다음 학습 추천</div>
+            <div class="coach-section-sub">지금 배우면 시너지가 큰 기술</div>
+          </div>
+        </div>
+        <div class="coach-cards">${sectionHtml(recs.nextSkills||[], false)}</div>
+      </div>
+      <div class="coach-section">
+        <div class="coach-section-header">
+          <div class="coach-section-icon" style="background:rgba(245,158,11,0.15)">💰</div>
+          <div>
+            <div class="coach-section-title">수익화 경로</div>
+            <div class="coach-section-sub">기술로 가치/수익을 창출하는 방법</div>
+          </div>
+        </div>
+        <div class="coach-cards">${sectionHtml(recs.monetize||[], true)}</div>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MODAL SYSTEM
+// ══════════════════════════════════════════════════════════════
+function openModal(title, bodyHtml, footerHtml) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-footer').innerHTML = footerHtml;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+// Skill Modal
+function openSkillModal(id) {
+  const s = id ? DB.skills.find(x => x.id === id) : null;
+  currentLevel = s ? s.level : 3;
+  const isEdit = !!s;
+  const v = s || { name:'', category:'AI', level:3, startDate:'', totalHours:'', learningPath:'실전', notes:'' };
+
+  const catOptions = CATEGORIES.map(c => `<option value="${c}" ${v.category===c?'selected':''}>${c}</option>`).join('');
+  const pathOptions = PATHS.map(p => `<option value="${p}" ${v.learningPath===p?'selected':''}>${p}</option>`).join('');
+  const levelStars = Array.from({length:5},(_,i) =>
+    `<span class="level-star ${i < v.level ? 'active':''}" data-level="${i+1}" onclick="setLevel(${i+1})">★</span>`
+  ).join('');
+
+  openModal(
+    isEdit ? '기술 편집' : '기술 추가',
+    `<input type="hidden" id="edit-id" value="${id||''}">
+     <div class="form-group">
+       <label class="form-label">기술명</label>
+       <input class="form-input" id="skill-name" value="${v.name}" placeholder="예: 스케치업, React, ChatGPT">
+     </div>
+     <div class="form-row">
+       <div class="form-group">
+         <label class="form-label">카테고리</label>
+         <select class="form-select" id="skill-cat">${catOptions}</select>
+       </div>
+       <div class="form-group">
+         <label class="form-label">학습 경로</label>
+         <select class="form-select" id="skill-path">${pathOptions}</select>
+       </div>
+     </div>
+     <div class="form-group">
+       <label class="form-label">숙련도</label>
+       <div class="level-picker" id="level-picker">${levelStars}</div>
+       <div class="form-hint" id="level-hint">${LEVEL_NAMES[v.level]} (${v.level}/5)</div>
+     </div>
+     <div class="form-row">
+       <div class="form-group">
+         <label class="form-label">학습 시작일</label>
+         <input class="form-input" type="date" id="skill-date" value="${v.startDate}">
+       </div>
+       <div class="form-group">
+         <label class="form-label">누적 학습 시간 (시간)</label>
+         <input class="form-input" type="number" id="skill-hours" value="${v.totalHours}" min="0" placeholder="예: 80">
+       </div>
+     </div>
+     <div class="form-group">
+       <label class="form-label">메모</label>
+       <textarea class="form-textarea" id="skill-notes" placeholder="이 기술에 대한 메모, 활용 계획 등">${v.notes||''}</textarea>
+     </div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">취소</button>
+     <button class="btn btn-primary" onclick="saveSkill()">저장</button>`
+  );
+}
+
+let currentLevel = 3;
+function setLevel(n) {
+  currentLevel = n;
+  document.querySelectorAll('#level-picker .level-star').forEach((el, i) => {
+    el.classList.toggle('active', i < n);
+  });
+  document.getElementById('level-hint').textContent = `${LEVEL_NAMES[n]} (${n}/5)`;
+}
+
+function saveSkill() {
+  const name = document.getElementById('skill-name').value.trim();
+  if (!name) { alert('기술명을 입력해주세요.'); return; }
+  const id = document.getElementById('edit-id').value;
+  const level = currentLevel;
+  const data = {
+    name,
+    category: document.getElementById('skill-cat').value,
+    level,
+    startDate: document.getElementById('skill-date').value,
+    totalHours: parseInt(document.getElementById('skill-hours').value) || 0,
+    learningPath: document.getElementById('skill-path').value,
+    notes: document.getElementById('skill-notes').value.trim(),
+  };
+  if (id) {
+    const idx = DB.skills.findIndex(s => s.id === id);
+    DB.skills[idx] = { ...DB.skills[idx], ...data };
+  } else {
+    DB.skills.push({ id: uid(), ...data, createdAt: new Date().toISOString().slice(0,10) });
+  }
+  saveDB();
+  closeModal();
+  renderSkills();
+  toast(id ? '기술이 수정되었습니다.' : '기술이 추가되었습니다.', 'success');
+}
+
+// Project Modal
+function openProjectModal(id) {
+  const p = id ? DB.projects.find(x => x.id === id) : null;
+  const isEdit = !!p;
+  const v = p || { title:'', description:'', date: new Date().toISOString().slice(0,10), imageUrl:'', externalLink:'', skillIds:[] };
+
+  const skillChecks = DB.skills.map(s =>
+    `<label class="skill-check-item">
+       <input type="checkbox" name="proj-skills" value="${s.id}" ${v.skillIds.includes(s.id)?'checked':''}>
+       <span>${s.name}</span>
+     </label>`
+  ).join('');
+
+  openModal(
+    isEdit ? '결과물 편집' : '결과물 추가',
+    `<input type="hidden" id="edit-proj-id" value="${id||''}">
+     <div class="form-group">
+       <label class="form-label">제목</label>
+       <input class="form-input" id="proj-title" value="${v.title}" placeholder="결과물 이름">
+     </div>
+     <div class="form-group">
+       <label class="form-label">설명</label>
+       <textarea class="form-textarea" id="proj-desc" placeholder="어떤 결과물인지 설명하세요.">${v.description||''}</textarea>
+     </div>
+     <div class="form-row">
+       <div class="form-group">
+         <label class="form-label">제작 날짜</label>
+         <input class="form-input" type="date" id="proj-date" value="${v.date}">
+       </div>
+       <div class="form-group">
+         <label class="form-label">링크 (선택)</label>
+         <input class="form-input" id="proj-link" value="${v.externalLink||''}" placeholder="https://...">
+       </div>
+     </div>
+     <div class="form-group">
+       <label class="form-label">사용한 기술 (다중 선택)</label>
+       ${DB.skills.length ? `<div class="skill-checks">${skillChecks}</div>` : '<div class="form-hint">먼저 기술을 등록해주세요.</div>'}
+     </div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">취소</button>
+     <button class="btn btn-primary" onclick="saveProject()">저장</button>`
+  );
+}
+
+function saveProject() {
+  const title = document.getElementById('proj-title').value.trim();
+  if (!title) { alert('제목을 입력해주세요.'); return; }
+  const id = document.getElementById('edit-proj-id').value;
+  const skillIds = [...document.querySelectorAll('[name="proj-skills"]:checked')].map(c => c.value);
+  const data = {
+    title,
+    description: document.getElementById('proj-desc').value.trim(),
+    date: document.getElementById('proj-date').value,
+    externalLink: document.getElementById('proj-link').value.trim(),
+    skillIds,
+  };
+  if (id) {
+    const idx = DB.projects.findIndex(p => p.id === id);
+    DB.projects[idx] = { ...DB.projects[idx], ...data };
+  } else {
+    DB.projects.push({ id: uid(), ...data, imageUrl:'' });
+  }
+  saveDB();
+  closeModal();
+  renderProjects();
+  toast(id ? '결과물이 수정되었습니다.' : '결과물이 추가되었습니다.', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════════════════════════
+function formatDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${y}.${m}.${day||''}`;
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type||''}`;
+  setTimeout(() => { el.classList.remove('show'); }, 2500);
+}
+
+// ══════════════════════════════════════════════════════════════
+// CATEGORY MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+function openCategoryModal() {
+  const renderRows = () => CATEGORIES.map((c, i) => {
+    const usedCount = DB.skills.filter(s => s.category === c).length;
+    const canDelete = usedCount === 0;
+    return `<div class="cat-row" data-orig-idx="${i}">
+      <div class="cat-color-dot" style="background:${CAT_COLORS_POOL[i % CAT_COLORS_POOL.length]}"></div>
+      <input class="form-input cat-name-input" value="${c}" data-orig-idx="${i}" style="flex:1;padding:6px 10px">
+      <span style="font-size:11px;color:var(--text3);min-width:36px;text-align:right">${usedCount}개</span>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="this.closest('.cat-row').remove()"
+        ${canDelete ? '' : 'disabled title="사용 중인 카테고리는 삭제할 수 없습니다"'}
+        style="${canDelete ? '' : 'opacity:0.3;cursor:not-allowed'}">🗑</button>
+    </div>`;
+  }).join('');
+
+  openModal('카테고리 편집',
+    `<div style="font-size:12px;color:var(--text3);margin-bottom:14px">이름 수정 시 해당 카테고리를 사용하는 모든 기술에 즉시 반영됩니다.</div>
+     <div id="cat-list">${renderRows()}</div>
+     <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;border-style:dashed" onclick="addCatRow()">+ 카테고리 추가</button>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">취소</button>
+     <button class="btn btn-primary" onclick="saveCategoryModal()">저장</button>`
+  );
+}
+
+function addCatRow() {
+  const list = document.getElementById('cat-list');
+  const newIdx = 9000 + list.querySelectorAll('.cat-row').length;
+  const colorIdx = list.querySelectorAll('.cat-row').length % CAT_COLORS_POOL.length;
+  const row = document.createElement('div');
+  row.className = 'cat-row';
+  row.dataset.origIdx = newIdx;
+  row.innerHTML = `
+    <div class="cat-color-dot" style="background:${CAT_COLORS_POOL[colorIdx]}"></div>
+    <input class="form-input cat-name-input" value="" data-orig-idx="${newIdx}" style="flex:1;padding:6px 10px" placeholder="새 카테고리 이름">
+    <span style="font-size:11px;color:var(--text3);min-width:36px;text-align:right">0개</span>
+    <button class="btn btn-ghost btn-icon btn-sm" onclick="this.closest('.cat-row').remove()">🗑</button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function saveCategoryModal() {
+  const inputs = [...document.querySelectorAll('#cat-list .cat-name-input')];
+  const newCats = [];
+
+  inputs.forEach(el => {
+    const origIdx = parseInt(el.dataset.origIdx);
+    const newName = el.value.trim();
+    if (!newName) return;
+    // Rename existing category across all skills
+    if (origIdx < CATEGORIES.length) {
+      const oldName = CATEGORIES[origIdx];
+      if (newName !== oldName) {
+        DB.skills.forEach(s => { if (s.category === oldName) s.category = newName; });
+        if (skillFilter === oldName) skillFilter = newName;
+      }
+    }
+    newCats.push(newName);
+  });
+
+  if (!newCats.length) { alert('최소 1개의 카테고리가 필요합니다.'); return; }
+
+  CATEGORIES = newCats;
+  rebuildCatMaps();
+  DB.settings.categories = CATEGORIES;
+  saveDB();
+  closeModal();
+  renderSkills();
+  if (currentTab === 'dashboard') renderDashboard();
+  toast('카테고리가 저장되었습니다.', 'success');
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+loadDB();
+renderDashboard();
+renderCoach();
+
+// Handle resize for network
+window.addEventListener('resize', () => {
+  if (currentTab === 'network') renderNetwork();
+});
+</script>
+</body>
+</html>
