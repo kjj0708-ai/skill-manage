@@ -152,6 +152,21 @@ a { color: var(--accent2); text-decoration: none; }
 .project-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
 .project-card:hover .project-actions { opacity: 1; }
 .project-link { font-size: 11px; color: var(--accent2); display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+.project-type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid; white-space: nowrap; flex-shrink: 0; }
+.type-select-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.type-select-btn { padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); font-size: 12px; cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text2); }
+.type-select-btn.selected { border-color: var(--accent); background: var(--accent)22; color: var(--accent); font-weight: 600; }
+.project-thumb { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; cursor: zoom-in; display: block; }
+.img-upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: border-color 0.2s; margin-bottom: 4px; }
+.img-upload-area:hover { border-color: var(--accent); }
+.img-upload-area input[type=file] { display: none; }
+.img-preview-wrap { position: relative; display: inline-block; max-width: 100%; }
+.img-preview-wrap img { max-width: 100%; max-height: 140px; border-radius: 6px; display: block; }
+.img-remove-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 13px; line-height: 22px; text-align: center; padding: 0; }
+/* Lightbox */
+.lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; cursor: zoom-out; }
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 8px; object-fit: contain; pointer-events: none; }
 
 /* ── Network Tab ── */
 .network-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
@@ -313,11 +328,11 @@ a { color: var(--accent2); text-decoration: none; }
         <span>네트워크</span>
       </div>
       <div class="nav-item" data-tab="coach">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21h6M12 3a6 6 0 0 1 6 6c0 2.22-1.21 4.16-3 5.2V17H9v-2.8C7.21 13.16 6 11.22 6 9a6 6 0 0 1 6-6z"/></svg>
         <span>AI 코치</span>
       </div>
     </div>
-    <div class="sidebar-footer">v1.0 · localStorage</div>
+    <div class="sidebar-footer">SkillVault v1.0</div>
   </nav>
 
   <!-- Bottom Nav (mobile) -->
@@ -340,7 +355,7 @@ a { color: var(--accent2); text-decoration: none; }
         <span>네트워크</span>
       </div>
       <div class="bottom-nav-item" data-tab="coach">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21h6M12 3a6 6 0 0 1 6 6c0 2.22-1.21 4.16-3 5.2V17H9v-2.8C7.21 13.16 6 11.22 6 9a6 6 0 0 1 6-6z"/></svg>
         <span>AI 코치</span>
       </div>
     </div>
@@ -468,7 +483,7 @@ a { color: var(--accent2); text-decoration: none; }
         <div class="api-section-header" onclick="toggleApiSection()">
           <div class="api-section-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Claude API 설정 <span style="font-size:11px;color:var(--text3);font-weight:400">(선택 · 없으면 기본 추천 제공)</span>
+            Gemini API 설정 <span style="font-size:11px;color:var(--text3);font-weight:400">(선택 · 없으면 기본 추천 제공)</span>
           </div>
           <span id="api-chevron" style="color:var(--text3)">▼</span>
         </div>
@@ -489,6 +504,11 @@ a { color: var(--accent2); text-decoration: none; }
 <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="handleImportFile(event)">
 
 <!-- ── Modal ── -->
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -721,6 +741,17 @@ function rebuildCatMaps() {
 }
 rebuildCatMaps();
 const PATHS = ['유튜브','책','강의','실전','독학','기타'];
+const PROJECT_TYPES = ['앱','전자책','유튜브','웹툰','음악','강의','디자인','기타'];
+const PROJECT_TYPE_META = {
+  '앱':    { icon:'📱', color:'#6366f1' },
+  '전자책': { icon:'📚', color:'#f59e0b' },
+  '유튜브': { icon:'🎬', color:'#ef4444' },
+  '웹툰':  { icon:'🎨', color:'#8b5cf6' },
+  '음악':  { icon:'🎵', color:'#10b981' },
+  '강의':  { icon:'📖', color:'#3b82f6' },
+  '디자인': { icon:'✏️', color:'#ec4899' },
+  '기타':  { icon:'📌', color:'#6b7280' },
+};
 const LEVEL_NAMES = ['','입문','초급','중급','고급','전문가'];
 
 const SEED_SKILLS = [
@@ -734,13 +765,13 @@ const SEED_SKILLS = [
 ];
 
 const SEED_PROJECTS = [
-  {id:'p1',title:'세컨하우스 건축디자인',description:'스케치업으로 직접 제작한 세컨하우스 3D 건축 도면. 내부 인테리어 레이아웃까지 설계.',date:'2022-06-01',imageUrl:'',externalLink:'',skillIds:['s1']},
-  {id:'p2',title:'업무수첩 앱',description:'Claude를 활용한 공무원 일일 업무 기록 및 관리 앱. HTML 단일 파일 구현.',date:'2023-08-01',imageUrl:'',externalLink:'',skillIds:['s2','s4']},
-  {id:'p3',title:'서구 도시주택국 대시보드',description:'부서 주요 업무 현황을 실시간으로 시각화한 대시보드. Firebase 백엔드 연동.',date:'2023-10-01',imageUrl:'',externalLink:'',skillIds:['s2','s4','s5']},
-  {id:'p4',title:'행정공제회 시뮬레이터',description:'행정공제회 예상 수익 시뮬레이션 도구. 다양한 시나리오별 분석 제공.',date:'2024-02-01',imageUrl:'',externalLink:'',skillIds:['s2','s4']},
-  {id:'p5',title:'링크 저장 창고 앱',description:'Flutter로 개발 중인 링크 큐레이션 및 분류 앱. 카테고리 자동 분류 기능 포함.',date:'2024-05-01',imageUrl:'',externalLink:'',skillIds:['s3']},
-  {id:'p6',title:'초실행관 유튜브 채널',description:'저연차 공무원 대상 공직생활 서바이벌 콘텐츠. 실행 중심 공직 노하우 전달.',date:'2023-09-01',imageUrl:'',externalLink:'',skillIds:['s6','s2']},
-  {id:'p7',title:'공무원 AI 활용법 전자책',description:'공무원을 위한 AI 도구 실전 가이드. Claude, ChatGPT 등 활용법을 담은 전자책.',date:'2024-08-01',imageUrl:'',externalLink:'',skillIds:['s7','s2']},
+  {id:'p1',title:'세컨하우스 건축디자인',description:'스케치업으로 직접 제작한 세컨하우스 3D 건축 도면. 내부 인테리어 레이아웃까지 설계.',date:'2022-06-01',imageUrl:'',externalLink:'',type:'디자인',skillIds:['s1']},
+  {id:'p2',title:'업무수첩 앱',description:'Claude를 활용한 공무원 일일 업무 기록 및 관리 앱. HTML 단일 파일 구현.',date:'2023-08-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4']},
+  {id:'p3',title:'서구 도시주택국 대시보드',description:'부서 주요 업무 현황을 실시간으로 시각화한 대시보드. Firebase 백엔드 연동.',date:'2023-10-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4','s5']},
+  {id:'p4',title:'행정공제회 시뮬레이터',description:'행정공제회 예상 수익 시뮬레이션 도구. 다양한 시나리오별 분석 제공.',date:'2024-02-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4']},
+  {id:'p5',title:'링크 저장 창고 앱',description:'Flutter로 개발 중인 링크 큐레이션 및 분류 앱. 카테고리 자동 분류 기능 포함.',date:'2024-05-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s3']},
+  {id:'p6',title:'초실행관 유튜브 채널',description:'저연차 공무원 대상 공직생활 서바이벌 콘텐츠. 실행 중심 공직 노하우 전달.',date:'2023-09-01',imageUrl:'',externalLink:'',type:'유튜브',skillIds:['s6','s2']},
+  {id:'p7',title:'공무원 AI 활용법 전자책',description:'공무원을 위한 AI 도구 실전 가이드. Claude, ChatGPT 등 활용법을 담은 전자책.',date:'2024-08-01',imageUrl:'',externalLink:'',type:'전자책',skillIds:['s7','s2']},
 ];
 
 const DB = { skills:[], projects:[], benefits:[], settings:{} };
@@ -892,14 +923,14 @@ function renderRecentProjects() {
   const sorted = [...DB.projects].sort((a,b) => b.date.localeCompare(a.date)).slice(0,4);
   const el = document.getElementById('recent-projects');
   el.innerHTML = sorted.map(p => {
-    const skills = getSkillsForProject(p.id);
+    const meta = PROJECT_TYPE_META[p.type] || PROJECT_TYPE_META['기타'];
+    const typeBadge = `<span class="project-type-badge" style="background:${meta.color}22;color:${meta.color};border-color:${meta.color}44">${meta.icon} ${p.type||'기타'}</span>`;
     return `<div class="project-card" style="cursor:default">
       <div class="project-card-header">
-        <div class="project-title">${p.title}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${typeBadge}<div class="project-title">${p.title}</div></div>
         <div class="project-date">${formatDate(p.date)}</div>
       </div>
       <div class="project-desc">${p.description}</div>
-      <div class="skill-tags">${skills.map(s => `<span class="skill-tag">${s.name}</span>`).join('')}</div>
     </div>`;
   }).join('');
 }
@@ -1000,10 +1031,12 @@ function renderProjects() {
 
 function renderProjectFilters() {
   const bar = document.getElementById('projects-filter');
-  const options = ['전체', ...DB.skills.map(s => s.name)];
+  const options = ['전체', ...PROJECT_TYPES];
   bar.innerHTML = options.map(name => {
     const active = projectFilter === name ? 'active' : '';
-    return `<button class="filter-btn ${active}" onclick="setProjectFilter('${name}')">${name}</button>`;
+    const meta = PROJECT_TYPE_META[name];
+    const label = meta ? `${meta.icon} ${name}` : name;
+    return `<button class="filter-btn ${active}" onclick="setProjectFilter('${name}')">${label}</button>`;
   }).join('');
 }
 
@@ -1016,8 +1049,7 @@ function setProjectFilter(name) {
 function renderTimeline() {
   let filtered = DB.projects;
   if (projectFilter !== '전체') {
-    const skill = DB.skills.find(s => s.name === projectFilter);
-    if (skill) filtered = filtered.filter(p => p.skillIds.includes(skill.id));
+    filtered = filtered.filter(p => p.type === projectFilter);
   }
   const sorted = [...filtered].sort((a,b) => b.date.localeCompare(a.date));
 
@@ -1041,12 +1073,14 @@ function renderTimeline() {
 }
 
 function renderProjectCard(p) {
-  const skills = getSkillsForProject(p.id);
+  const meta = PROJECT_TYPE_META[p.type] || PROJECT_TYPE_META['기타'];
+  const typeBadge = `<span class="project-type-badge" style="background:${meta.color}22;color:${meta.color};border-color:${meta.color}44">${meta.icon} ${p.type || '기타'}</span>`;
   const linkHtml = p.externalLink ? `<a class="project-link" href="${p.externalLink}" target="_blank">🔗 링크 열기</a>` : '';
+  const thumbHtml = p.imageUrl ? `<img class="project-thumb" src="${p.imageUrl}" alt="" onclick="openLightbox(this.src)">` : '';
   return `<div class="timeline-item">
     <div class="project-card">
       <div class="project-card-header">
-        <div class="project-title">${p.title}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${typeBadge}<div class="project-title">${p.title}</div></div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="project-date">${formatDate(p.date)}</div>
           <div class="project-actions">
@@ -1055,8 +1089,8 @@ function renderProjectCard(p) {
           </div>
         </div>
       </div>
+      ${thumbHtml}
       <div class="project-desc">${p.description}</div>
-      <div class="skill-tags">${skills.map(s => `<span class="skill-tag" style="border-color:${CAT_COLOR[s.category]}40;color:${CAT_COLOR[s.category]}">${s.name}</span>`).join('')}</div>
       ${linkHtml}
     </div>
   </div>`;
@@ -1500,18 +1534,22 @@ function saveSkill() {
 function openProjectModal(id) {
   const p = id ? DB.projects.find(x => x.id === id) : null;
   const isEdit = !!p;
-  const v = p || { title:'', description:'', date: new Date().toISOString().slice(0,10), imageUrl:'', externalLink:'', skillIds:[] };
+  const v = p || { title:'', description:'', date: new Date().toISOString().slice(0,10), imageUrl:'', externalLink:'', type:'', skillIds:[] };
 
-  const skillChecks = DB.skills.map(s =>
-    `<label class="skill-check-item">
-       <input type="checkbox" name="proj-skills" value="${s.id}" ${v.skillIds.includes(s.id)?'checked':''}>
-       <span>${s.name}</span>
-     </label>`
-  ).join('');
+  const typeButtons = PROJECT_TYPES.map(t => {
+    const meta = PROJECT_TYPE_META[t];
+    const sel = v.type === t ? 'selected' : '';
+    return `<button type="button" class="type-select-btn ${sel}" onclick="selectProjType(this,'${t}')">${meta.icon}<br>${t}</button>`;
+  }).join('');
 
   openModal(
     isEdit ? '결과물 편집' : '결과물 추가',
     `<input type="hidden" id="edit-proj-id" value="${id||''}">
+     <input type="hidden" id="proj-type" value="${v.type||''}">
+     <div class="form-group">
+       <label class="form-label">유형</label>
+       <div class="type-select-grid">${typeButtons}</div>
+     </div>
      <div class="form-group">
        <label class="form-label">제목</label>
        <input class="form-input" id="proj-title" value="${v.title}" placeholder="결과물 이름">
@@ -1531,36 +1569,79 @@ function openProjectModal(id) {
        </div>
      </div>
      <div class="form-group">
-       <label class="form-label">사용한 기술 (다중 선택)</label>
-       ${DB.skills.length ? `<div class="skill-checks">${skillChecks}</div>` : '<div class="form-hint">먼저 기술을 등록해주세요.</div>'}
+       <label class="form-label">이미지 (선택)</label>
+       <div class="img-upload-area" onclick="document.getElementById('proj-img-input').click()">
+         <input type="file" id="proj-img-input" accept="image/*" onchange="handleProjImg(event)">
+         <div id="proj-img-preview">
+           ${v.imageUrl ? `<div class="img-preview-wrap"><img src="${v.imageUrl}" alt=""><button class="img-remove-btn" onclick="event.stopPropagation();removeProjImg()">×</button></div>` : '<span style="font-size:13px;color:var(--text3)">클릭하여 이미지 업로드</span>'}
+         </div>
+       </div>
      </div>`,
     `<button class="btn btn-ghost" onclick="closeModal()">취소</button>
      <button class="btn btn-primary" onclick="saveProject()">저장</button>`
   );
 }
 
+function selectProjType(btn, type) {
+  document.querySelectorAll('.type-select-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('proj-type').value = type;
+}
+
 function saveProject() {
   const title = document.getElementById('proj-title').value.trim();
   if (!title) { alert('제목을 입력해주세요.'); return; }
   const id = document.getElementById('edit-proj-id').value;
-  const skillIds = [...document.querySelectorAll('[name="proj-skills"]:checked')].map(c => c.value);
+  const type = document.getElementById('proj-type').value || '기타';
+  const existing = id ? DB.projects.find(p => p.id === id) : null;
+  const skillIds = existing ? existing.skillIds : [];
+  const imgEl = document.querySelector('#proj-img-preview img');
+  const imageUrl = imgEl ? imgEl.src : (existing ? existing.imageUrl || '' : '');
   const data = {
     title,
     description: document.getElementById('proj-desc').value.trim(),
     date: document.getElementById('proj-date').value,
     externalLink: document.getElementById('proj-link').value.trim(),
+    type,
     skillIds,
+    imageUrl,
   };
   if (id) {
     const idx = DB.projects.findIndex(p => p.id === id);
     DB.projects[idx] = { ...DB.projects[idx], ...data };
   } else {
-    DB.projects.push({ id: uid(), ...data, imageUrl:'' });
+    DB.projects.push({ id: uid(), ...data });
   }
   saveDB();
   closeModal();
   renderProjects();
   toast(id ? '결과물이 수정되었습니다.' : '결과물이 추가되었습니다.', 'success');
+}
+
+function handleProjImg(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('proj-img-preview').innerHTML =
+      `<div class="img-preview-wrap"><img src="${ev.target.result}" alt=""><button class="img-remove-btn" onclick="event.stopPropagation();removeProjImg()">×</button></div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeProjImg() {
+  document.getElementById('proj-img-preview').innerHTML = '<span style="font-size:13px;color:var(--text3)">클릭하여 이미지 업로드</span>';
+  const inp = document.getElementById('proj-img-input');
+  if (inp) inp.value = '';
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
 }
 
 // ══════════════════════════════════════════════════════════════
