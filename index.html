@@ -9,7 +9,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
 :root {
   --bg: #0d0f18;
@@ -547,7 +546,6 @@ firebase.initializeApp({
 });
 const fbAuth   = firebase.auth();
 const fsdb     = firebase.firestore();
-const fstore   = firebase.storage();
 
 // ══════════════════════════════════════════════════════════════
 // AUTH
@@ -654,10 +652,11 @@ async function pushToFirestore() {
   if (!currentUser) return;
   setSyncStatus('syncing', '저장 중...');
   try {
+    const projectsNoFiles = DB.projects.map(p => ({ ...p, files: (p.files||[]).map(f => ({ name: f.name, size: f.size, mimeType: f.mimeType })) }));
     await fsdb.collection('users').doc(currentUser.uid)
               .collection('data').doc('main').set({
       skills:   DB.skills,
-      projects: DB.projects,
+      projects: projectsNoFiles,
       benefits: DB.benefits,
       settings: DB.settings,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1115,9 +1114,6 @@ function renderProjectCard(p) {
 function deleteProject(id) {
   if (!confirm('이 결과물을 삭제하시겠습니까?')) return;
   const p = DB.projects.find(x => x.id === id);
-  if (p && p.files) {
-    p.files.forEach(f => { if (f.storagePath) try { fstore.ref(f.storagePath).delete(); } catch(e) {} });
-  }
   DB.projects = DB.projects.filter(p => p.id !== id);
   saveDB();
   renderProjects();
@@ -1460,13 +1456,7 @@ function openModal(title, bodyHtml, footerHtml) {
 }
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
-  if (window._sessionUploadedPaths && window._sessionUploadedPaths.length) {
-    window._sessionUploadedPaths.forEach(path => {
-      try { fstore.ref(path).delete(); } catch(e) {}
-    });
-  }
   window._projFiles = null;
-  window._sessionUploadedPaths = [];
   window._pendingProjId = null;
 }
 document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
@@ -1694,39 +1684,19 @@ function handleProjFiles(e) {
   if (!files.length) return;
   if (!window._projFiles) window._projFiles = [];
   e.target.value = '';
-
-  if (!currentUser) {
-    const MAX = 2 * 1024 * 1024;
-    let skipped = 0;
-    const readers = files.map(file => new Promise(resolve => {
-      if (file.size > MAX) { skipped++; resolve(null); return; }
-      const reader = new FileReader();
-      reader.onload = ev => resolve({ name: file.name, size: file.size, mimeType: file.type, url: ev.target.result, storagePath: null });
-      reader.readAsDataURL(file);
-    }));
-    Promise.all(readers).then(results => {
-      results.filter(Boolean).forEach(f => window._projFiles.push(f));
-      renderProjFileList();
-      if (skipped) toast(`${skipped}개 파일이 2MB를 초과해 제외됐습니다.`, 'error');
-    });
-    return;
-  }
-
-  const projId = window._pendingProjId;
-  toast('파일 업로드 중...', '');
-  const uploads = files.map(file => {
-    const path = `users/${currentUser.uid}/projects/${projId}/${Date.now()}_${file.name}`;
-    return fstore.ref(path).put(file).then(snap => snap.ref.getDownloadURL()).then(url => {
-      if (!window._sessionUploadedPaths) window._sessionUploadedPaths = [];
-      window._sessionUploadedPaths.push(path);
-      return { name: file.name, size: file.size, mimeType: file.type, url, storagePath: path };
-    });
-  });
-  Promise.all(uploads).then(results => {
-    results.forEach(f => window._projFiles.push(f));
+  const MAX = 2 * 1024 * 1024;
+  let skipped = 0;
+  const readers = files.map(file => new Promise(resolve => {
+    if (file.size > MAX) { skipped++; resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = ev => resolve({ name: file.name, size: file.size, mimeType: file.type, url: ev.target.result });
+    reader.readAsDataURL(file);
+  }));
+  Promise.all(readers).then(results => {
+    results.filter(Boolean).forEach(f => window._projFiles.push(f));
     renderProjFileList();
-    toast('파일 업로드 완료', 'success');
-  }).catch(() => toast('파일 업로드 실패', 'error'));
+    if (skipped) toast(`${skipped}개 파일이 2MB를 초과해 제외됐습니다.`, 'error');
+  });
 }
 
 function renderProjFileList() {
@@ -1743,13 +1713,7 @@ function renderProjFileList() {
 }
 
 function removeProjFile(i) {
-  if (!window._projFiles) return;
-  const f = window._projFiles[i];
-  if (f && f.storagePath) {
-    try { fstore.ref(f.storagePath).delete(); } catch(e) {}
-    window._sessionUploadedPaths = (window._sessionUploadedPaths || []).filter(p => p !== f.storagePath);
-  }
-  window._projFiles.splice(i, 1);
+  if (window._projFiles) window._projFiles.splice(i, 1);
   renderProjFileList();
 }
 
