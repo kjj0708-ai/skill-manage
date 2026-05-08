@@ -156,6 +156,15 @@ a { color: var(--accent2); text-decoration: none; }
 .type-select-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .type-select-btn { padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); font-size: 12px; cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text2); }
 .type-select-btn.selected { border-color: var(--accent); background: var(--accent)22; color: var(--accent); font-weight: 600; }
+.file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.file-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); font-size: 12px; }
+.file-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
+.file-item-size { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.file-item-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+.file-item-del:hover { color: #ef4444; }
+.proj-file-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--accent2); padding: 4px 8px; border-radius: 5px; background: var(--surface2); border: 1px solid var(--border); text-decoration: none; transition: border-color 0.15s; }
+.proj-file-link:hover { border-color: var(--accent2); }
+.proj-files-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .project-thumb { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; cursor: zoom-in; display: block; }
 .img-upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: border-color 0.2s; margin-bottom: 4px; }
 .img-upload-area:hover { border-color: var(--accent); }
@@ -1077,6 +1086,9 @@ function renderProjectCard(p) {
   const typeBadge = `<span class="project-type-badge" style="background:${meta.color}22;color:${meta.color};border-color:${meta.color}44">${meta.icon} ${p.type || '기타'}</span>`;
   const linkHtml = p.externalLink ? `<a class="project-link" href="${p.externalLink}" target="_blank">🔗 링크 열기</a>` : '';
   const thumbHtml = p.imageUrl ? `<img class="project-thumb" src="${p.imageUrl}" alt="" onclick="openLightbox(this.src)">` : '';
+  const skillsForProject = getSkillsForProject(p.id);
+  const skillTagsHtml = skillsForProject.length ? `<div class="skill-tags" style="margin-top:8px">${skillsForProject.map(s=>`<span class="skill-tag" style="border-color:${CAT_COLOR[s.category]}40;color:${CAT_COLOR[s.category]}">${s.name}</span>`).join('')}</div>` : '';
+  const filesHtml = (p.files||[]).length ? `<div class="proj-files-wrap">${(p.files).map(f=>`<a class="proj-file-link" href="${f.data}" download="${f.name}">${fileIcon(f.name)} ${f.name} <span style="color:var(--text3);font-size:10px">${formatBytes(f.size)}</span></a>`).join('')}</div>` : '';
   return `<div class="timeline-item">
     <div class="project-card">
       <div class="project-card-header">
@@ -1091,6 +1103,8 @@ function renderProjectCard(p) {
       </div>
       ${thumbHtml}
       <div class="project-desc">${p.description}</div>
+      ${skillTagsHtml}
+      ${filesHtml}
       ${linkHtml}
     </div>
   </div>`;
@@ -1532,15 +1546,34 @@ function saveSkill() {
 
 // Project Modal
 function openProjectModal(id) {
+  window._projFiles = null;
   const p = id ? DB.projects.find(x => x.id === id) : null;
   const isEdit = !!p;
-  const v = p || { title:'', description:'', date: new Date().toISOString().slice(0,10), imageUrl:'', externalLink:'', type:'', skillIds:[] };
+  const v = p || { title:'', description:'', date: new Date().toISOString().slice(0,10), imageUrl:'', externalLink:'', type:'', skillIds:[], files:[] };
+  if (!v.files) v.files = [];
+  window._projFiles = v.files.map(f => ({...f}));
 
   const typeButtons = PROJECT_TYPES.map(t => {
     const meta = PROJECT_TYPE_META[t];
     const sel = v.type === t ? 'selected' : '';
     return `<button type="button" class="type-select-btn ${sel}" onclick="selectProjType(this,'${t}')">${meta.icon}<br>${t}</button>`;
   }).join('');
+
+  const skillChecks = DB.skills.map(s =>
+    `<label class="skill-check-item">
+       <input type="checkbox" name="proj-skills" value="${s.id}" ${v.skillIds.includes(s.id)?'checked':''}>
+       <span>${s.name}</span>
+     </label>`
+  ).join('');
+
+  const filesHtml = v.files.map((f,i) =>
+    `<div class="file-item" id="proj-file-${i}">
+       <span style="font-size:16px">${fileIcon(f.name)}</span>
+       <span class="file-item-name">${f.name}</span>
+       <span class="file-item-size">${formatBytes(f.size)}</span>
+       <button class="file-item-del" onclick="removeProjFile(${i})" title="삭제">×</button>
+     </div>`
+  ).join('');
 
   openModal(
     isEdit ? '결과물 편집' : '결과물 추가',
@@ -1569,6 +1602,10 @@ function openProjectModal(id) {
        </div>
      </div>
      <div class="form-group">
+       <label class="form-label">사용한 기술</label>
+       ${DB.skills.length ? `<div class="skill-checks">${skillChecks}</div>` : '<div class="form-hint">먼저 기술을 등록해주세요.</div>'}
+     </div>
+     <div class="form-group">
        <label class="form-label">이미지 (선택)</label>
        <div class="img-upload-area" onclick="document.getElementById('proj-img-input').click()">
          <input type="file" id="proj-img-input" accept="image/*" onchange="handleProjImg(event)">
@@ -1576,6 +1613,15 @@ function openProjectModal(id) {
            ${v.imageUrl ? `<div class="img-preview-wrap"><img src="${v.imageUrl}" alt=""><button class="img-remove-btn" onclick="event.stopPropagation();removeProjImg()">×</button></div>` : '<span style="font-size:13px;color:var(--text3)">클릭하여 이미지 업로드</span>'}
          </div>
        </div>
+     </div>
+     <div class="form-group">
+       <label class="form-label">첨부 파일 (선택 · 파일당 최대 500KB)</label>
+       <div id="proj-file-list" class="file-list">${filesHtml}</div>
+       <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%" onclick="document.getElementById('proj-file-input').click()">
+         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+         파일 추가
+       </button>
+       <input type="file" id="proj-file-input" multiple style="display:none" onchange="handleProjFiles(event)">
      </div>`,
     `<button class="btn btn-ghost" onclick="closeModal()">취소</button>
      <button class="btn btn-primary" onclick="saveProject()">저장</button>`
@@ -1594,9 +1640,10 @@ function saveProject() {
   const id = document.getElementById('edit-proj-id').value;
   const type = document.getElementById('proj-type').value || '기타';
   const existing = id ? DB.projects.find(p => p.id === id) : null;
-  const skillIds = existing ? existing.skillIds : [];
+  const skillIds = [...document.querySelectorAll('[name="proj-skills"]:checked')].map(c => c.value);
   const imgEl = document.querySelector('#proj-img-preview img');
   const imageUrl = imgEl ? imgEl.src : (existing ? existing.imageUrl || '' : '');
+  const files = window._projFiles || (existing ? existing.files || [] : []);
   const data = {
     title,
     description: document.getElementById('proj-desc').value.trim(),
@@ -1605,6 +1652,7 @@ function saveProject() {
     type,
     skillIds,
     imageUrl,
+    files,
   };
   if (id) {
     const idx = DB.projects.findIndex(p => p.id === id);
@@ -1612,10 +1660,67 @@ function saveProject() {
   } else {
     DB.projects.push({ id: uid(), ...data });
   }
+  window._projFiles = null;
   saveDB();
   closeModal();
   renderProjects();
   toast(id ? '결과물이 수정되었습니다.' : '결과물이 추가되었습니다.', 'success');
+}
+
+function handleProjFiles(e) {
+  const MAX = 500 * 1024;
+  const newFiles = [...e.target.files];
+  if (!window._projFiles) window._projFiles = [];
+  let skipped = 0;
+  const readers = newFiles.map(file => new Promise(resolve => {
+    if (file.size > MAX) { skipped++; resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = ev => resolve({ name: file.name, size: file.size, mimeType: file.type, data: ev.target.result });
+    reader.readAsDataURL(file);
+  }));
+  Promise.all(readers).then(results => {
+    results.filter(Boolean).forEach(f => window._projFiles.push(f));
+    renderProjFileList();
+    if (skipped) toast(`${skipped}개 파일이 500KB를 초과해 제외됐습니다.`, 'error');
+    e.target.value = '';
+  });
+}
+
+function renderProjFileList() {
+  const list = document.getElementById('proj-file-list');
+  if (!list) return;
+  list.innerHTML = (window._projFiles || []).map((f, i) =>
+    `<div class="file-item">
+       <span style="font-size:16px">${fileIcon(f.name)}</span>
+       <span class="file-item-name">${f.name}</span>
+       <span class="file-item-size">${formatBytes(f.size)}</span>
+       <button class="file-item-del" onclick="removeProjFile(${i})" title="삭제">×</button>
+     </div>`
+  ).join('');
+}
+
+function removeProjFile(i) {
+  if (window._projFiles) window._projFiles.splice(i, 1);
+  renderProjFileList();
+}
+
+function fileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['pdf'].includes(ext)) return '📄';
+  if (['doc','docx','hwp','hwpx'].includes(ext)) return '📝';
+  if (['xls','xlsx','csv'].includes(ext)) return '📊';
+  if (['ppt','pptx'].includes(ext)) return '📑';
+  if (['zip','rar','7z'].includes(ext)) return '🗜️';
+  if (['mp4','mov','avi','mkv'].includes(ext)) return '🎬';
+  if (['mp3','wav','m4a'].includes(ext)) return '🎵';
+  if (['png','jpg','jpeg','gif','webp'].includes(ext)) return '🖼️';
+  return '📎';
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + 'B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + 'KB';
+  return (b / 1024 / 1024).toFixed(1) + 'MB';
 }
 
 function handleProjImg(e) {
