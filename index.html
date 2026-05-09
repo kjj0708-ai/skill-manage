@@ -165,6 +165,17 @@ a { color: var(--accent2); text-decoration: none; }
 .proj-file-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--accent2); padding: 4px 8px; border-radius: 5px; background: var(--surface2); border: 1px solid var(--border); text-decoration: none; transition: border-color 0.15s; }
 .proj-file-link:hover { border-color: var(--accent2); }
 .proj-files-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.metrics-section { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.metrics-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.metric-chip { display: flex; align-items: baseline; gap: 4px; padding: 5px 10px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); font-size: 12px; }
+.metric-chip-name { color: var(--text3); font-size: 11px; }
+.metric-chip-val { font-weight: 700; color: var(--yellow); font-size: 14px; }
+.metric-chip-unit { color: var(--text3); font-size: 11px; }
+.metric-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.metric-row input { flex: 1; }
+.metric-row .metric-unit { width: 60px; }
+.metric-row .metric-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; padding: 0 4px; flex-shrink: 0; }
+.metric-row .metric-del:hover { color: #ef4444; }
 .project-thumb { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; cursor: zoom-in; display: block; }
 .img-upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: border-color 0.2s; margin-bottom: 4px; }
 .img-upload-area:hover { border-color: var(--accent); }
@@ -775,13 +786,13 @@ const SEED_SKILLS = [
 ];
 
 const SEED_PROJECTS = [
-  {id:'p1',title:'세컨하우스 건축디자인',description:'스케치업으로 직접 제작한 세컨하우스 3D 건축 도면. 내부 인테리어 레이아웃까지 설계.',date:'2022-06-01',imageUrl:'',externalLink:'',type:'디자인',skillIds:['s1']},
-  {id:'p2',title:'업무수첩 앱',description:'Claude를 활용한 공무원 일일 업무 기록 및 관리 앱. HTML 단일 파일 구현.',date:'2023-08-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4']},
-  {id:'p3',title:'서구 도시주택국 대시보드',description:'부서 주요 업무 현황을 실시간으로 시각화한 대시보드. Firebase 백엔드 연동.',date:'2023-10-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4','s5']},
-  {id:'p4',title:'행정공제회 시뮬레이터',description:'행정공제회 예상 수익 시뮬레이션 도구. 다양한 시나리오별 분석 제공.',date:'2024-02-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4']},
-  {id:'p5',title:'링크 저장 창고 앱',description:'Flutter로 개발 중인 링크 큐레이션 및 분류 앱. 카테고리 자동 분류 기능 포함.',date:'2024-05-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s3']},
-  {id:'p6',title:'초실행관 유튜브 채널',description:'저연차 공무원 대상 공직생활 서바이벌 콘텐츠. 실행 중심 공직 노하우 전달.',date:'2023-09-01',imageUrl:'',externalLink:'',type:'유튜브',skillIds:['s6','s2']},
-  {id:'p7',title:'공무원 AI 활용법 전자책',description:'공무원을 위한 AI 도구 실전 가이드. Claude, ChatGPT 등 활용법을 담은 전자책.',date:'2024-08-01',imageUrl:'',externalLink:'',type:'전자책',skillIds:['s7','s2']},
+  {id:'p1',title:'세컨하우스 건축디자인',description:'스케치업으로 직접 제작한 세컨하우스 3D 건축 도면. 내부 인테리어 레이아웃까지 설계.',date:'2022-06-01',imageUrl:'',externalLink:'',type:'디자인',skillIds:['s1'],metrics:[],files:[]},
+  {id:'p2',title:'업무수첩 앱',description:'Claude를 활용한 공무원 일일 업무 기록 및 관리 앱. HTML 단일 파일 구현.',date:'2023-08-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4'],metrics:[{name:'사용자 수',value:12,unit:'명'}],files:[]},
+  {id:'p3',title:'서구 도시주택국 대시보드',description:'부서 주요 업무 현황을 실시간으로 시각화한 대시보드. Firebase 백엔드 연동.',date:'2023-10-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4','s5'],metrics:[{name:'일 방문자',value:30,unit:'명'}],files:[]},
+  {id:'p4',title:'행정공제회 시뮬레이터',description:'행정공제회 예상 수익 시뮬레이션 도구. 다양한 시나리오별 분석 제공.',date:'2024-02-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s2','s4'],metrics:[],files:[]},
+  {id:'p5',title:'링크 저장 창고 앱',description:'Flutter로 개발 중인 링크 큐레이션 및 분류 앱. 카테고리 자동 분류 기능 포함.',date:'2024-05-01',imageUrl:'',externalLink:'',type:'앱',skillIds:['s3'],metrics:[],files:[]},
+  {id:'p6',title:'초실행관 유튜브 채널',description:'저연차 공무원 대상 공직생활 서바이벌 콘텐츠. 실행 중심 공직 노하우 전달.',date:'2023-09-01',imageUrl:'',externalLink:'',type:'유튜브',skillIds:['s6','s2'],metrics:[{name:'조회수',value:3200,unit:'회'},{name:'구독자',value:84,unit:'명'}],files:[]},
+  {id:'p7',title:'공무원 AI 활용법 전자책',description:'공무원을 위한 AI 도구 실전 가이드. Claude, ChatGPT 등 활용법을 담은 전자책.',date:'2024-08-01',imageUrl:'',externalLink:'',type:'전자책',skillIds:['s7','s2'],metrics:[{name:'판매액',value:320000,unit:'원'},{name:'판매 부수',value:45,unit:'권'}],files:[]},
 ];
 
 const DB = { skills:[], projects:[], benefits:[], settings:{} };
@@ -913,10 +924,10 @@ function renderBalance() {
   const maxP = Math.max(...DB.skills.map(s => getProjectsBySkill(s.id).length), 1);
   list.innerHTML = DB.skills.slice(0, 8).map(s => {
     const projects = getProjectsBySkill(s.id).length;
-    const benefits = DB.benefits.filter(b => b.skillId === s.id).length;
+    const metricCount = getProjectsBySkill(s.id).reduce((sum, p) => sum + (p.metrics||[]).filter(m=>m.name).length, 0);
     const hPct = Math.round(((s.totalHours||0) / maxH) * 100);
     const pPct = Math.round((projects / maxP) * 100);
-    const bPct = Math.min(benefits * 20, 100);
+    const bPct = Math.min(metricCount * 25, 100);
     const warn = projects === 0 ? '<span class="balance-warn" title="결과물 없음">⚠</span>' : '';
     return `<div class="balance-item">
       <div class="balance-name" title="${s.name}">${s.name}</div>
@@ -1089,7 +1100,8 @@ function renderProjectCard(p) {
   const thumbHtml = p.imageUrl ? `<img class="project-thumb" src="${p.imageUrl}" alt="" onclick="openLightbox(this.src)">` : '';
   const skillsForProject = getSkillsForProject(p.id);
   const skillTagsHtml = skillsForProject.length ? `<div class="skill-tags" style="margin-top:8px">${skillsForProject.map(s=>`<span class="skill-tag" style="border-color:${CAT_COLOR[s.category]}40;color:${CAT_COLOR[s.category]}">${s.name}</span>`).join('')}</div>` : '';
-  const filesHtml = (p.files||[]).length ? `<div class="proj-files-wrap">${(p.files).map(f=>`<a class="proj-file-link" href="${f.data}" download="${f.name}">${fileIcon(f.name)} ${f.name} <span style="color:var(--text3);font-size:10px">${formatBytes(f.size)}</span></a>`).join('')}</div>` : '';
+  const filesHtml = (p.files||[]).length ? `<div class="proj-files-wrap">${(p.files).map(f=>`<a class="proj-file-link" href="${f.url}" download="${f.name}">${fileIcon(f.name)} ${f.name} <span style="color:var(--text3);font-size:10px">${formatBytes(f.size)}</span></a>`).join('')}</div>` : '';
+  const metricsHtmlCard = (p.metrics||[]).length ? `<div class="metrics-section"><div class="metrics-grid">${(p.metrics).map(m=>`<div class="metric-chip"><span class="metric-chip-name">${m.name}</span><span class="metric-chip-val">${Number(m.value).toLocaleString()}</span><span class="metric-chip-unit">${m.unit}</span></div>`).join('')}</div></div>` : '';
   return `<div class="timeline-item">
     <div class="project-card">
       <div class="project-card-header">
@@ -1104,6 +1116,7 @@ function renderProjectCard(p) {
       </div>
       ${thumbHtml}
       <div class="project-desc">${p.description}</div>
+      ${metricsHtmlCard}
       ${skillTagsHtml}
       ${filesHtml}
       ${linkHtml}
@@ -1457,6 +1470,7 @@ function openModal(title, bodyHtml, footerHtml) {
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   window._projFiles = null;
+  window._projMetrics = null;
   window._pendingProjId = null;
 }
 document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
@@ -1583,6 +1597,9 @@ function openProjectModal(id) {
      </div>`
   ).join('');
 
+  window._projMetrics = (v.metrics||[]).map(m => ({...m}));
+  const metricsHtml = metricRowsHtml();
+
   openModal(
     isEdit ? '결과물 편집' : '결과물 추가',
     `<input type="hidden" id="edit-proj-id" value="${id||''}">
@@ -1623,7 +1640,15 @@ function openProjectModal(id) {
        </div>
      </div>
      <div class="form-group">
-       <label class="form-label">첨부 파일 (선택 · 파일당 최대 500KB)</label>
+       <label class="form-label">실적 지표 (선택)</label>
+       <div id="proj-metric-rows">${metricsHtml}</div>
+       <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%" onclick="addProjMetric()">
+         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+         지표 추가
+       </button>
+     </div>
+     <div class="form-group">
+       <label class="form-label">첨부 파일 (선택 · 파일당 최대 2MB)</label>
        <div id="proj-file-list" class="file-list">${filesHtml}</div>
        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%" onclick="document.getElementById('proj-file-input').click()">
          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1634,6 +1659,30 @@ function openProjectModal(id) {
     `<button class="btn btn-ghost" onclick="closeModal()">취소</button>
      <button class="btn btn-primary" onclick="saveProject()">저장</button>`
   );
+}
+
+function metricRowsHtml() {
+  return (window._projMetrics || []).map((m, i) =>
+    `<div class="metric-row">
+       <input class="form-input" placeholder="항목명 (예: 판매액)" value="${m.name||''}" oninput="window._projMetrics[${i}].name=this.value">
+       <input class="form-input" type="number" placeholder="숫자" value="${m.value||''}" style="width:90px" oninput="window._projMetrics[${i}].value=Number(this.value)">
+       <input class="form-input metric-unit" placeholder="단위" value="${m.unit||''}" oninput="window._projMetrics[${i}].unit=this.value">
+       <button class="metric-del" onclick="removeProjMetric(${i})">×</button>
+     </div>`
+  ).join('');
+}
+
+function addProjMetric() {
+  if (!window._projMetrics) window._projMetrics = [];
+  window._projMetrics.push({ name:'', value:0, unit:'' });
+  const el = document.getElementById('proj-metric-rows');
+  if (el) el.innerHTML = metricRowsHtml();
+}
+
+function removeProjMetric(i) {
+  if (window._projMetrics) window._projMetrics.splice(i, 1);
+  const el = document.getElementById('proj-metric-rows');
+  if (el) el.innerHTML = metricRowsHtml();
 }
 
 function selectProjType(btn, type) {
@@ -1652,6 +1701,7 @@ function saveProject() {
   const imgEl = document.querySelector('#proj-img-preview img');
   const imageUrl = imgEl ? imgEl.src : (existing ? existing.imageUrl || '' : '');
   const files = window._projFiles || (existing ? existing.files || [] : []);
+  const metrics = (window._projMetrics || []).filter(m => m.name.trim());
   const data = {
     title,
     description: document.getElementById('proj-desc').value.trim(),
@@ -1661,6 +1711,7 @@ function saveProject() {
     skillIds,
     imageUrl,
     files,
+    metrics,
   };
   const projId = id || window._pendingProjId || uid();
   if (id) {
@@ -1672,6 +1723,7 @@ function saveProject() {
   // 저장 성공 — 이번 세션 업로드 파일은 유지
   window._sessionUploadedPaths = [];
   window._projFiles = null;
+  window._projMetrics = null;
   window._pendingProjId = null;
   saveDB();
   document.getElementById('modal-overlay').classList.remove('open');
